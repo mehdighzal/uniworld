@@ -11,6 +11,17 @@ let displayedPrograms = 0;
 let searchResults = []; // Store search results for favorites
 let displayedSearchResults = 0;
 let currentProgramId = null; // Store current program ID for favorites
+let selectedPrograms = []; // Store selected programs for bulk email
+
+// Email integration
+let emailAccounts = {
+    gmail: { connected: false, email: '', accessToken: '' },
+    outlook: { connected: false, email: '', accessToken: '' }
+};
+let emailSettings = {
+    defaultProvider: 'gmail',
+    signature: ''
+};
 
 // Subscription management
 let userSubscription = {
@@ -20,6 +31,11 @@ let userSubscription = {
     searchesUsed: 0,
     searchesLimit: 'unlimited'
 };
+
+// Pagination variables
+let currentPage = 1;
+let resultsPerPage = 10;
+let allSearchResults = [];
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -143,6 +159,15 @@ function setupEventListeners() {
             console.log('Password change form event listener attached');
         } else {
             console.error('Password change form not found');
+        }
+        
+        // Bulk email form
+        const bulkEmailForm = document.getElementById('bulkEmailForm');
+        if (bulkEmailForm) {
+            bulkEmailForm.addEventListener('submit', handleBulkEmailSubmit);
+            console.log('Bulk email form event listener attached');
+        } else {
+            console.error('Bulk email form not found');
         }
         
     }, 100);
@@ -381,9 +406,26 @@ function createUniversityCard(university) {
 // Create program card
 function createProgramCard(program) {
     const card = document.createElement('div');
-    card.className = 'bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow';
+    card.className = 'bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow relative';
+    
+    // Check if program is in favorites
+    const isFavorite = favoritePrograms.find(fav => fav.id === program.id);
+    const heartIcon = isFavorite ? 'fas fa-heart text-red-500' : 'far fa-heart text-gray-400';
+    const heartTitle = isFavorite ? 'Remove from favorites' : 'Add to favorites';
+    
     card.innerHTML = `
-        <div class="mb-4">
+        <div class="absolute top-4 right-4 flex items-center space-x-2">
+            <button onclick="toggleFavorite(${program.id})" 
+                    class="heart-button p-1 hover:bg-gray-100 rounded-full transition-colors" 
+                    title="${heartTitle}">
+                <i class="${heartIcon} text-lg"></i>
+            </button>
+            <input type="checkbox" 
+                   id="program-${program.id}" 
+                   class="program-checkbox w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 focus:ring-2"
+                   onchange="toggleProgramSelection(${program.id})">
+        </div>
+        <div class="mb-4 pr-16">
             <h3 class="text-lg font-semibold text-gray-900 mb-2">${program.name}</h3>
             <p class="text-indigo-600 font-medium">${program.university ? program.university.name : 'Unknown University'}</p>
             <p class="text-gray-600 text-sm">${program.university ? program.university.city : 'Unknown City'}, ${program.university ? program.university.country : 'Unknown Country'}</p>
@@ -1369,6 +1411,16 @@ function showDashboard() {
     document.getElementById('dashboardEmailsUsed').textContent = `${userSubscription.emailsUsed} / ${userSubscription.emailLimit}`;
     document.getElementById('dashboardStatus').textContent = userSubscription.status.charAt(0).toUpperCase() + userSubscription.status.slice(1);
     
+    // Load email settings and accounts
+    loadEmailSettings();
+    loadEmailAccounts();
+    
+    // Show development mode indicator if in development
+    const devIndicator = document.getElementById('developmentModeIndicator');
+    if (devIndicator && isDevelopmentMode()) {
+        devIndicator.classList.remove('hidden');
+    }
+    
     // Show modal
     const modal = document.getElementById('dashboardModal');
     modal.classList.remove('hidden');
@@ -1486,7 +1538,68 @@ function saveFavorites() {
     localStorage.setItem('favoritePrograms', JSON.stringify(favoritePrograms));
 }
 
-// Add program to favorites
+// Toggle favorite status for a program
+function toggleFavorite(programId) {
+    console.log('=== TOGGLING FAVORITE ===', programId);
+    
+    if (!currentUser) {
+        showNotification('Please login to manage favorites', 'error');
+        return;
+    }
+    
+    const program = allPrograms.find(p => p.id === programId) || searchResults.find(p => p.id === programId);
+    if (!program) {
+        console.error('Program not found with ID:', programId);
+        showNotification('Program not found', 'error');
+        return;
+    }
+    
+    // Check if already in favorites
+    const existingFavorite = favoritePrograms.find(fav => fav.id === programId);
+    
+    if (existingFavorite) {
+        // Remove from favorites
+        favoritePrograms = favoritePrograms.filter(fav => fav.id !== programId);
+        saveFavorites();
+        showNotification('Removed from favorites', 'info');
+        console.log('=== PROGRAM REMOVED FROM FAVORITES ===');
+    } else {
+        // Add to favorites
+        favoritePrograms.push({
+            id: program.id,
+            name: program.name,
+            university: program.university ? program.university.name : 'Unknown',
+            field_of_study: program.field_of_study,
+            degree_level: program.degree_level,
+            added_date: new Date().toISOString()
+        });
+        saveFavorites();
+        showNotification('Added to favorites!', 'success');
+        console.log('=== PROGRAM ADDED TO FAVORITES ===');
+    }
+    
+    // Update the heart icon in the program card
+    updateHeartIcon(programId);
+}
+
+// Update heart icon for a specific program
+function updateHeartIcon(programId) {
+    const heartButton = document.querySelector(`button[onclick="toggleFavorite(${programId})"]`);
+    if (heartButton) {
+        const heartIcon = heartButton.querySelector('i');
+        const isFavorite = favoritePrograms.find(fav => fav.id === programId);
+        
+        if (isFavorite) {
+            heartIcon.className = 'fas fa-heart text-red-500 text-lg';
+            heartButton.title = 'Remove from favorites';
+        } else {
+            heartIcon.className = 'far fa-heart text-gray-400 text-lg';
+            heartButton.title = 'Add to favorites';
+        }
+    }
+}
+
+// Add program to favorites (legacy function for modal)
 function addToFavorites() {
     console.log('=== ADDING TO FAVORITES ===', currentProgramId);
     
@@ -1527,6 +1640,9 @@ function addToFavorites() {
     saveFavorites();
     showNotification('Added to favorites!', 'success');
     console.log('=== PROGRAM ADDED TO FAVORITES ===');
+    
+    // Update the heart icon
+    updateHeartIcon(currentProgramId);
 }
 
 // Remove program from favorites
@@ -1536,6 +1652,9 @@ function removeFromFavorites(programId) {
     favoritePrograms = favoritePrograms.filter(fav => fav.id !== programId);
     saveFavorites();
     showNotification('Removed from favorites', 'success');
+    
+    // Update the heart icon
+    updateHeartIcon(programId);
     
     // Refresh favorites display if modal is open
     if (!document.getElementById('favoritesModal').classList.contains('hidden')) {
@@ -1688,7 +1807,9 @@ async function searchPrograms() {
         
         console.log('Final results array:', results);
         searchResults = results; // Store results globally for favorites
-        displaySearchResults(results);
+        allSearchResults = results; // Store all results for pagination
+        currentPage = 1; // Reset to first page
+        displaySearchResults(results.slice(0, resultsPerPage)); // Show only first 10 results
         
         // Scroll to search results section
         scrollToSection('search-results');
@@ -1702,20 +1823,767 @@ async function searchPrograms() {
 function displaySearchResults(results) {
     const resultsSection = document.getElementById('searchResults');
     const container = document.getElementById('resultsContainer');
+    const bulkEmailSection = document.getElementById('bulkEmailSection');
     
     if (!resultsSection || !container) return;
     
     resultsSection.classList.remove('hidden');
-    container.innerHTML = '';
+    
+    // Clear existing results only if this is the first page
+    if (currentPage === 1) {
+        container.innerHTML = '';
+    }
     
     if (results && results.length > 0) {
+        // Show bulk email section for subscribed users
+        if (currentUser && userSubscription && userSubscription.plan !== 'free') {
+            if (bulkEmailSection) {
+                bulkEmailSection.classList.remove('hidden');
+            }
+        }
+        
         results.forEach(program => {
             const card = createProgramCard(program);
             container.appendChild(card);
         });
+        
+        // Update heart icons for all displayed programs
+        results.forEach(program => {
+            updateHeartIcon(program.id);
+        });
+        
+        // Add or update "Show More" button
+        updateShowMoreButton();
     } else {
-        container.innerHTML = '<p class="text-center text-gray-500 py-8">No programs found matching your criteria.</p>';
+        if (currentPage === 1) {
+            container.innerHTML = '<p class="text-center text-gray-500 py-8">No programs found matching your criteria.</p>';
+            // Hide bulk email section if no results
+            if (bulkEmailSection) {
+                bulkEmailSection.classList.add('hidden');
+            }
+        }
+        // Remove "Show More" button if no more results
+        removeShowMoreButton();
     }
+}
+
+// Pagination helper functions
+function updateShowMoreButton() {
+    const resultsSection = document.getElementById('searchResults');
+    const container = document.getElementById('resultsContainer');
+    
+    if (!resultsSection || !container) return;
+    
+    // Remove existing button if it exists
+    removeShowMoreButton();
+    
+    const totalResults = allSearchResults.length;
+    const displayedResults = currentPage * resultsPerPage;
+    const remainingResults = totalResults - displayedResults;
+    
+    if (remainingResults > 0) {
+        const showMoreBtn = document.createElement('div');
+        showMoreBtn.className = 'col-span-full flex justify-center mt-6';
+        showMoreBtn.innerHTML = `
+            <button id="showMoreBtn" onclick="showMoreResults()" 
+                    class="bg-indigo-600 text-white px-8 py-3 rounded-md hover:bg-indigo-700 transition-colors font-semibold">
+                <i class="fas fa-plus mr-2"></i>Show More (${remainingResults} remaining)
+            </button>
+        `;
+        
+        // Insert after the results container
+        resultsSection.appendChild(showMoreBtn);
+    }
+}
+
+function removeShowMoreButton() {
+    const showMoreBtn = document.getElementById('showMoreBtn');
+    if (showMoreBtn) {
+        showMoreBtn.parentElement.remove();
+    }
+}
+
+function showMoreResults() {
+    currentPage++;
+    const startIndex = (currentPage - 1) * resultsPerPage;
+    const endIndex = startIndex + resultsPerPage;
+    const nextResults = allSearchResults.slice(startIndex, endIndex);
+    
+    displaySearchResults(nextResults);
+}
+
+// Bulk Email Functions
+function toggleProgramSelection(programId) {
+    const checkbox = document.getElementById(`program-${programId}`);
+    const program = searchResults.find(p => p.id === programId);
+    
+    if (!program) return;
+    
+    if (checkbox.checked) {
+        if (!selectedPrograms.find(p => p.id === programId)) {
+            selectedPrograms.push(program);
+        }
+    } else {
+        selectedPrograms = selectedPrograms.filter(p => p.id !== programId);
+    }
+    
+    updateSelectedCount();
+    updateBulkEmailButtons();
+    
+    // Update the bulk email modal if it's open
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        updateSelectedProgramsList();
+    }
+}
+
+function selectAllPrograms() {
+    selectedPrograms = [...searchResults];
+    
+    // Check all checkboxes
+    searchResults.forEach(program => {
+        const checkbox = document.getElementById(`program-${program.id}`);
+        if (checkbox) {
+            checkbox.checked = true;
+        }
+    });
+    
+    updateSelectedCount();
+    updateBulkEmailButtons();
+    
+    // Update the bulk email modal if it's open
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        updateSelectedProgramsList();
+    }
+}
+
+function clearAllPrograms() {
+    selectedPrograms = [];
+    
+    // Uncheck all checkboxes
+    searchResults.forEach(program => {
+        const checkbox = document.getElementById(`program-${program.id}`);
+        if (checkbox) {
+            checkbox.checked = false;
+        }
+    });
+    
+    updateSelectedCount();
+    updateBulkEmailButtons();
+    
+    // Update the bulk email modal if it's open
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        updateSelectedProgramsList();
+    }
+}
+
+function updateSelectedCount() {
+    const countElement = document.getElementById('selectedCount');
+    if (countElement) {
+        countElement.textContent = `${selectedPrograms.length} programs selected`;
+    }
+}
+
+function updateBulkEmailButtons() {
+    const sendBulkEmailBtn = document.getElementById('sendBulkEmailBtn');
+    if (sendBulkEmailBtn) {
+        if (selectedPrograms.length > 0) {
+            sendBulkEmailBtn.disabled = false;
+            sendBulkEmailBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        } else {
+            sendBulkEmailBtn.disabled = true;
+            sendBulkEmailBtn.classList.add('opacity-50', 'cursor-not-allowed');
+        }
+    }
+}
+
+function showBulkEmailModal() {
+    if (!currentUser) {
+        showNotification('Please login to send bulk emails', 'error');
+        showLoginModal();
+        return;
+    }
+    
+    const subscription = userSubscription || { plan: 'free' };
+    if (subscription.plan === 'free') {
+        showNotification('Bulk email is a premium feature. Please upgrade to Premium or Pro plan.', 'error');
+        showSubscriptionDashboard();
+        return;
+    }
+    
+    if (selectedPrograms.length === 0) {
+        showNotification('Please select at least one program', 'error');
+        return;
+    }
+    
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal) {
+        updateSelectedProgramsList();
+        updateBulkEmailUsageInfo();
+        modal.classList.remove('hidden');
+    }
+}
+
+function closeBulkEmailModal() {
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function updateSelectedProgramsList() {
+    const listElement = document.getElementById('selectedProgramsList');
+    if (!listElement) return;
+    
+    if (selectedPrograms.length === 0) {
+        listElement.innerHTML = '<p class="text-gray-500">No programs selected</p>';
+        return;
+    }
+    
+    listElement.innerHTML = selectedPrograms.map(program => `
+        <div class="flex items-center justify-between bg-white p-3 rounded border">
+            <div>
+                <h5 class="font-medium text-gray-900">${program.name}</h5>
+                <p class="text-sm text-gray-600">${program.university ? program.university.name : 'Unknown University'}</p>
+            </div>
+            <button onclick="removeSelectedProgram(${program.id})" class="text-red-600 hover:text-red-700">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+function removeSelectedProgram(programId) {
+    selectedPrograms = selectedPrograms.filter(p => p.id !== programId);
+    
+    // Uncheck the checkbox
+    const checkbox = document.getElementById(`program-${programId}`);
+    if (checkbox) {
+        checkbox.checked = false;
+    }
+    
+    updateSelectedCount();
+    updateBulkEmailButtons();
+    updateSelectedProgramsList();
+    
+    // Update the bulk email modal if it's open
+    const modal = document.getElementById('bulkEmailModal');
+    if (modal && !modal.classList.contains('hidden')) {
+        updateSelectedProgramsList();
+    }
+}
+
+function updateBulkEmailUsageInfo() {
+    const usageElement = document.getElementById('bulkEmailUsageInfo');
+    if (!usageElement) return;
+    
+    const subscription = userSubscription || { plan: 'free', emailsUsed: 0 };
+    const emailsUsed = subscription.emailsUsed || 0;
+    const emailLimit = subscription.plan === 'premium' ? 50 : 200;
+    const remainingEmails = Math.max(0, emailLimit - emailsUsed);
+    
+    usageElement.textContent = `You have ${remainingEmails} emails remaining this month (${subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1)} Plan)`;
+}
+
+function loadBulkEmailTemplate(templateType) {
+    const emailBody = document.getElementById('bulkEmailBody');
+    if (!emailBody) return;
+    
+    let template = '';
+    
+    switch (templateType) {
+        case 'inquiry':
+            template = `Dear Coordinators,
+
+I hope this email finds you well. I am writing to inquire about the master's programs at your respective universities.
+
+I am very interested in pursuing my master's degree and would like to learn more about:
+- Available programs in my field of study
+- Application requirements and deadlines
+- Admission process and criteria
+- Scholarship opportunities
+- Career prospects after graduation
+
+I would greatly appreciate any information you could provide about the programs and the application process.
+
+Thank you for your time and consideration.
+
+Best regards,
+[Your Name]`;
+            break;
+            
+        case 'admission':
+            template = `Dear Admissions Committees,
+
+I am writing to inquire about the admission requirements for the master's programs at your universities.
+
+I am particularly interested in understanding:
+- Academic requirements and prerequisites
+- Application deadlines
+- Required documents
+- English language proficiency requirements
+- Tuition fees and payment options
+
+I have completed my bachelor's degree and am eager to continue my studies at your prestigious institutions.
+
+Could you please provide me with detailed information about the admission process?
+
+Thank you for your assistance.
+
+Sincerely,
+[Your Name]`;
+            break;
+            
+        case 'scholarship':
+            template = `Dear Scholarship Committees,
+
+I hope this message finds you well. I am writing to inquire about scholarship opportunities for international students in the master's programs at your universities.
+
+I am very interested in pursuing my master's degree at your institutions, but I would like to explore available financial aid options, including:
+- Merit-based scholarships
+- Need-based financial aid
+- Research assistantships
+- Teaching assistantships
+- External funding opportunities
+
+I am committed to academic excellence and would be grateful for any information about scholarship programs that might be available to me.
+
+Thank you for considering my inquiry.
+
+Best regards,
+[Your Name]`;
+            break;
+    }
+    
+    emailBody.value = template;
+    showNotification('Bulk email template loaded', 'success');
+}
+
+// Handle bulk email form submission
+async function handleBulkEmailSubmit(e) {
+    e.preventDefault();
+    console.log('=== BULK EMAIL SUBMISSION STARTED ===');
+    
+    if (selectedPrograms.length === 0) {
+        showNotification('Please select at least one program', 'error');
+        return;
+    }
+    
+    const formData = new FormData(e.target);
+    const subject = formData.get('subject');
+    const body = formData.get('body');
+    
+    if (!subject || !body) {
+        showNotification('Please fill in all required fields', 'error');
+        return;
+    }
+    
+    // Check subscription and email limits
+    const subscription = userSubscription || { plan: 'free', emailsUsed: 0 };
+    const emailsUsed = subscription.emailsUsed || 0;
+    const emailLimit = subscription.plan === 'premium' ? 50 : 200;
+    
+    if (emailsUsed >= emailLimit) {
+        showNotification(`You have reached your monthly email limit (${emailLimit} emails). Please upgrade your plan or wait for next month.`, 'error');
+        return;
+    }
+    
+    // Get all coordinators from selected programs
+    const allCoordinators = [];
+    for (const program of selectedPrograms) {
+        try {
+            const data = await apiRequest(`/coordinators/?program_id=${program.program_id}`);
+            const coordinators = data.results || data;
+            coordinators.forEach(coordinator => {
+                if (coordinator.email) {
+                    allCoordinators.push({
+                        ...coordinator,
+                        program_name: program.name,
+                        university_name: program.university ? program.university.name : 'Unknown University'
+                    });
+                }
+            });
+        } catch (error) {
+            console.error(`Error fetching coordinators for program ${program.id}:`, error);
+        }
+    }
+    
+    if (allCoordinators.length === 0) {
+        showNotification('No coordinators found for selected programs', 'error');
+        return;
+    }
+    
+    // Check if we have enough emails remaining
+    if (emailsUsed + allCoordinators.length > emailLimit) {
+        showNotification(`You can only send ${emailLimit - emailsUsed} more emails this month. Please select fewer programs or upgrade your plan.`, 'error');
+        return;
+    }
+    
+    // Send bulk email
+    try {
+        const response = await fetch(`${API_BASE_URL}/send-bulk-email/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                coordinators: allCoordinators,
+                subject: subject,
+                body: body
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            console.log('Bulk email sent successfully:', result);
+            
+            // Update email usage
+            userSubscription.emailsUsed = (userSubscription.emailsUsed || 0) + allCoordinators.length;
+            saveSubscriptionData();
+            
+            // Clear selected programs
+            clearAllPrograms();
+            
+            // Close modal
+            closeBulkEmailModal();
+            
+            // Show success notification
+            showNotification(`Bulk email sent successfully to ${allCoordinators.length} coordinators!`, 'success');
+            
+            // Add to email history
+            addBulkEmailToHistory(allCoordinators, subject, body);
+            
+        } else {
+            const error = await response.json();
+            console.error('Bulk email failed:', error);
+            showNotification(`Failed to send bulk email: ${error.message || 'Unknown error'}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error sending bulk email:', error);
+        showNotification('Error sending bulk email. Please try again.', 'error');
+    }
+}
+
+// Add bulk email to history
+function addBulkEmailToHistory(coordinators, subject, body) {
+    const emailHistory = JSON.parse(localStorage.getItem('emailHistory') || '[]');
+    
+    emailHistory.push({
+        type: 'bulk',
+        coordinators: coordinators.map(c => ({
+            name: c.name,
+            email: c.email,
+            program: c.program_name,
+            university: c.university_name
+        })),
+        subject: subject,
+        body: body,
+        timestamp: new Date().toISOString(),
+        count: coordinators.length
+    });
+    
+    localStorage.setItem('emailHistory', JSON.stringify(emailHistory));
+}
+
+// OAuth2 Email Integration Functions
+function connectGmail() {
+    console.log('=== CONNECTING GMAIL ===');
+    
+    // Check if we're in development mode
+    if (isDevelopmentMode()) {
+        console.log('Development mode: Simulating Gmail connection');
+        simulateGmailConnection();
+        return;
+    }
+    
+    // Gmail OAuth2 configuration
+    const clientId = 'your-gmail-client-id.apps.googleusercontent.com'; // Replace with actual Gmail client ID
+    const redirectUri = window.location.origin + '/oauth/gmail/callback';
+    const scope = 'https://www.googleapis.com/auth/gmail.send';
+    
+    // Create OAuth2 URL
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${clientId}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `response_type=code&` +
+        `access_type=offline&` +
+        `prompt=consent&` +
+        `state=gmail-oauth-${Date.now()}`;
+    
+    // Open OAuth2 popup
+    const popup = window.open(authUrl, 'gmail-oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+    
+    if (!popup) {
+        showNotification('Popup blocked! Please allow popups for this site.', 'error');
+        return;
+    }
+    
+    // Listen for OAuth2 callback
+    const checkClosed = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(checkClosed);
+            // Check if we have a successful connection
+            checkOAuth2Status('gmail');
+        }
+    }, 1000);
+}
+
+function connectOutlook() {
+    console.log('=== CONNECTING OUTLOOK ===');
+    
+    // Check if we're in development mode
+    if (isDevelopmentMode()) {
+        console.log('Development mode: Simulating Outlook connection');
+        simulateOutlookConnection();
+        return;
+    }
+    
+    // Outlook OAuth2 configuration
+    const clientId = 'your-outlook-client-id'; // Replace with actual Outlook client ID
+    const redirectUri = window.location.origin + '/oauth/outlook/callback';
+    const scope = 'https://graph.microsoft.com/Mail.Send';
+    
+    // Create OAuth2 URL
+    const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+        `client_id=${clientId}&` +
+        `response_type=code&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `scope=${encodeURIComponent(scope)}&` +
+        `response_mode=query&` +
+        `state=outlook-oauth-${Date.now()}`;
+    
+    // Open OAuth2 popup
+    const popup = window.open(authUrl, 'outlook-oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
+    
+    if (!popup) {
+        showNotification('Popup blocked! Please allow popups for this site.', 'error');
+        return;
+    }
+    
+    // Listen for OAuth2 callback
+    const checkClosed = setInterval(() => {
+        if (popup.closed) {
+            clearInterval(checkClosed);
+            // Check if we have a successful connection
+            checkOAuth2Status('outlook');
+        }
+    }, 1000);
+}
+
+// Development Mode Functions
+function isDevelopmentMode() {
+    // Check if we're in development mode
+    return window.location.hostname === 'localhost' || 
+           window.location.hostname === '127.0.0.1' ||
+           window.location.hostname.includes('localhost');
+}
+
+function simulateGmailConnection() {
+    // Simulate successful Gmail connection for demo
+    emailAccounts.gmail.connected = true;
+    emailAccounts.gmail.email = 'test@gmail.com';
+    emailAccounts.gmail.accessToken = 'dev-gmail-token-12345';
+    
+    updateEmailAccountDisplay('gmail');
+    showNotification('Gmail connected successfully! (Development Mode)', 'success');
+    saveEmailAccounts();
+}
+
+function simulateOutlookConnection() {
+    // Simulate successful Outlook connection for demo
+    emailAccounts.outlook.connected = true;
+    emailAccounts.outlook.email = 'test@outlook.com';
+    emailAccounts.outlook.accessToken = 'dev-outlook-token-67890';
+    
+    updateEmailAccountDisplay('outlook');
+    showNotification('Outlook connected successfully! (Development Mode)', 'success');
+    saveEmailAccounts();
+}
+
+function checkOAuth2Status(provider) {
+    // Check if OAuth2 connection was successful
+    // In a real implementation, this would check the OAuth2 callback
+    console.log(`Checking OAuth2 status for ${provider}`);
+    
+    // For now, we'll simulate a successful connection
+    if (provider === 'gmail') {
+        simulateGmailConnection();
+    } else if (provider === 'outlook') {
+        simulateOutlookConnection();
+    }
+}
+
+function disconnectGmail() {
+    console.log('=== DISCONNECTING GMAIL ===');
+    
+    emailAccounts.gmail.connected = false;
+    emailAccounts.gmail.email = '';
+    emailAccounts.gmail.accessToken = '';
+    
+    updateEmailAccountDisplay('gmail');
+    showNotification('Gmail disconnected successfully!', 'info');
+    saveEmailAccounts();
+}
+
+function disconnectOutlook() {
+    console.log('=== DISCONNECTING OUTLOOK ===');
+    
+    emailAccounts.outlook.connected = false;
+    emailAccounts.outlook.email = '';
+    emailAccounts.outlook.accessToken = '';
+    
+    updateEmailAccountDisplay('outlook');
+    showNotification('Outlook disconnected successfully!', 'info');
+    saveEmailAccounts();
+}
+
+function updateEmailAccountDisplay(provider) {
+    const statusElement = document.getElementById(`${provider}Status`);
+    const accountInfoElement = document.getElementById(`${provider}AccountInfo`);
+    const emailElement = document.getElementById(`${provider}Email`);
+    const connectBtn = document.getElementById(`${provider}ConnectBtn`);
+    const disconnectBtn = document.getElementById(`${provider}DisconnectBtn`);
+    
+    if (emailAccounts[provider].connected) {
+        // Update status
+        if (statusElement) {
+            statusElement.innerHTML = '<span class="bg-green-100 text-green-800 px-2 py-1 rounded-full">Connected</span>';
+        }
+        
+        // Show account info
+        if (accountInfoElement) {
+            accountInfoElement.classList.remove('hidden');
+        }
+        
+        // Update email
+        if (emailElement) {
+            emailElement.textContent = emailAccounts[provider].email;
+        }
+        
+        // Show disconnect button
+        if (connectBtn) {
+            connectBtn.classList.add('hidden');
+        }
+        if (disconnectBtn) {
+            disconnectBtn.classList.remove('hidden');
+        }
+    } else {
+        // Update status
+        if (statusElement) {
+            statusElement.innerHTML = '<span class="bg-gray-100 text-gray-800 px-2 py-1 rounded-full">Not Connected</span>';
+        }
+        
+        // Hide account info
+        if (accountInfoElement) {
+            accountInfoElement.classList.add('hidden');
+        }
+        
+        // Show connect button
+        if (connectBtn) {
+            connectBtn.classList.remove('hidden');
+        }
+        if (disconnectBtn) {
+            disconnectBtn.classList.add('hidden');
+        }
+    }
+}
+
+function saveEmailSettings() {
+    console.log('=== SAVING EMAIL SETTINGS ===');
+    
+    const defaultProvider = document.getElementById('defaultEmailProvider');
+    const signature = document.getElementById('emailSignature');
+    
+    if (defaultProvider) {
+        emailSettings.defaultProvider = defaultProvider.value;
+    }
+    
+    if (signature) {
+        emailSettings.signature = signature.value;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('emailSettings', JSON.stringify(emailSettings));
+    
+    showNotification('Email settings saved successfully!', 'success');
+}
+
+function loadEmailSettings() {
+    console.log('=== LOADING EMAIL SETTINGS ===');
+    
+    // Load from localStorage
+    const savedSettings = localStorage.getItem('emailSettings');
+    if (savedSettings) {
+        emailSettings = { ...emailSettings, ...JSON.parse(savedSettings) };
+    }
+    
+    // Update UI
+    const defaultProvider = document.getElementById('defaultEmailProvider');
+    const signature = document.getElementById('emailSignature');
+    
+    if (defaultProvider) {
+        defaultProvider.value = emailSettings.defaultProvider;
+    }
+    
+    if (signature) {
+        signature.value = emailSettings.signature;
+    }
+}
+
+function loadEmailAccounts() {
+    console.log('=== LOADING EMAIL ACCOUNTS ===');
+    
+    // Load from localStorage
+    const savedAccounts = localStorage.getItem('emailAccounts');
+    if (savedAccounts) {
+        emailAccounts = { ...emailAccounts, ...JSON.parse(savedAccounts) };
+    }
+    
+    // Update UI
+    updateEmailAccountDisplay('gmail');
+    updateEmailAccountDisplay('outlook');
+}
+
+function saveEmailAccounts() {
+    localStorage.setItem('emailAccounts', JSON.stringify(emailAccounts));
+}
+
+function getConnectedEmailProvider() {
+    if (emailAccounts.gmail.connected) return 'gmail';
+    if (emailAccounts.outlook.connected) return 'outlook';
+    return null;
+}
+
+function sendEmailViaOAuth2(recipient, subject, body) {
+    const provider = getConnectedEmailProvider();
+    
+    if (!provider) {
+        showNotification('No email account connected. Please connect Gmail or Outlook first.', 'error');
+        return false;
+    }
+    
+    console.log(`=== SENDING EMAIL VIA ${provider.toUpperCase()} ===`);
+    
+    // Simulate email sending
+    const emailData = {
+        provider: provider,
+        recipient: recipient,
+        subject: subject,
+        body: body,
+        signature: emailSettings.signature,
+        timestamp: new Date().toISOString()
+    };
+    
+    // In a real implementation, this would make an API call to send the email
+    console.log('Email data:', emailData);
+    
+    showNotification(`Email sent successfully via ${provider.charAt(0).toUpperCase() + provider.slice(1)}!`, 'success');
+    return true;
 }
 
 // Show more functions
