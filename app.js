@@ -975,6 +975,13 @@ async function loadEmailSuggestions(programId) {
             `).join('')}
         `;
         
+        // Set global AI variables for the first coordinator
+        if (coordinators.length > 0) {
+            currentProgramForAI = programId;
+            currentCoordinatorForAI = coordinators[0].id;
+            console.log('AI variables set in loadEmailSuggestions:', { currentProgramForAI, currentCoordinatorForAI });
+        }
+        
         console.log('Email suggestions loaded successfully for program:', programId);
         
     } catch (error) {
@@ -1318,11 +1325,29 @@ async function subscribeToPlan(planType) {
 }
 
 // Show email composition modal
-function showEmailCompositionModal(programId) {
+async function showEmailCompositionModal(programId) {
     const program = allPrograms.find(p => p.id === programId) || searchResults.find(p => p.id === programId);
     if (!program) {
         showNotification('Program not found', 'error');
         return;
+    }
+    
+    // Set global AI variables
+    currentProgramForAI = programId;
+    
+    // Fetch coordinators to set the coordinator ID
+    try {
+        const data = await apiRequest(`/coordinators/?program_id=${program.program_id}`);
+        const coordinators = data.results || data;
+        
+        if (coordinators.length > 0) {
+            currentCoordinatorForAI = coordinators[0].id;
+            console.log('AI variables set in showEmailCompositionModal:', { currentProgramForAI, currentCoordinatorForAI });
+        } else {
+            console.log('No coordinators found for program:', programId);
+        }
+    } catch (error) {
+        console.error('Error fetching coordinators for AI:', error);
     }
     
     const modalHTML = `
@@ -1341,6 +1366,30 @@ function showEmailCompositionModal(programId) {
                         <p class="text-gray-700"><strong>Field:</strong> ${program.field_of_study}</p>
                     </div>
                     
+                    <!-- AI Email Assistant -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">🤖 AI Email Assistant</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                            <button type="button" onclick="generateAISuggestions()" 
+                                    class="px-3 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm">
+                                <i class="fas fa-robot mr-1"></i>Generate Email
+                            </button>
+                            <button type="button" onclick="generateAISubjectOptions()" 
+                                    class="px-3 py-2 bg-green-100 text-green-800 rounded-md hover:bg-green-200 text-sm">
+                                <i class="fas fa-edit mr-1"></i>Subject Options
+                            </button>
+                            <button type="button" onclick="enhanceEmailContent()" 
+                                    class="px-3 py-2 bg-purple-100 text-purple-800 rounded-md hover:bg-purple-200 text-sm">
+                                <i class="fas fa-magic mr-1"></i>Enhance Content
+                            </button>
+                        </div>
+                        
+                        <!-- AI Suggestions Container -->
+                        <div id="aiSuggestionsContainer" class="hidden mb-6">
+                            <!-- AI suggestions will be populated here -->
+                        </div>
+                    </div>
+                    
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Subject</label>
                         <input type="text" id="emailSubject" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500" 
@@ -1349,7 +1398,7 @@ function showEmailCompositionModal(programId) {
                     
                     <div>
                         <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
-                        <textarea id="emailMessage" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">Dear Coordinator,
+                        <textarea id="emailBody" rows="8" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">Dear Coordinator,
 
 I am writing to inquire about the ${program.name} program at ${program.university ? program.university.name : 'your university'}.
 
@@ -2609,6 +2658,336 @@ function showMorePrograms() {
             showMoreBtn.classList.add('hidden');
         }
     }
+}
+
+// AI Email Assistant Functions
+let currentProgramForAI = null;
+let currentCoordinatorForAI = null;
+
+// Generate AI-powered email suggestions
+async function generateAISuggestions(programId = null, coordinatorId = null, emailType = 'inquiry') {
+    // Use global variables if parameters not provided
+    if (!programId) programId = currentProgramForAI;
+    if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
+    
+    console.log('AI function called with:', { programId, coordinatorId, emailType });
+    console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
+    
+    if (!programId || !coordinatorId) {
+        showNotification('Please select a program and coordinator first', 'error');
+        console.error('Missing program or coordinator ID:', { programId, coordinatorId });
+        return;
+    }
+    
+    // Show loading state
+    showAILoadingState('Generating AI email suggestions...');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/ai/generate-suggestions/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                program_id: programId,
+                coordinator_id: coordinatorId,
+                email_type: emailType
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAISuggestions(data.suggestions);
+        } else {
+            showNotification(`Error: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error generating AI suggestions:', error);
+        showNotification('Failed to generate AI suggestions', 'error');
+    }
+}
+
+// Generate multiple subject options
+async function generateAISubjectOptions(programId = null, coordinatorId = null, emailType = 'inquiry', count = 3) {
+    // Use global variables if parameters not provided
+    if (!programId) programId = currentProgramForAI;
+    if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
+    
+    console.log('AI subject function called with:', { programId, coordinatorId, emailType, count });
+    console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
+    
+    if (!programId || !coordinatorId) {
+        showNotification('Please select a program and coordinator first', 'error');
+        console.error('Missing program or coordinator ID:', { programId, coordinatorId });
+        return;
+    }
+    
+    // Show loading state
+    showAILoadingState('Generating AI subject options...');
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/ai/generate-subjects/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                program_id: programId,
+                coordinator_id: coordinatorId,
+                email_type: emailType,
+                count: count
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayAISubjectOptions(data.subject_options);
+        } else {
+            showNotification(`Error: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error generating AI subject options:', error);
+        showNotification('Failed to generate AI subject options', 'error');
+    }
+}
+
+// Enhance existing email content
+async function enhanceEmailContent(programId = null, coordinatorId = null, enhancementType = 'improve') {
+    if (!programId) programId = currentProgramForAI;
+    if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
+    
+    if (!programId || !coordinatorId) {
+        showNotification('Please select a program and coordinator first', 'error');
+        return;
+    }
+    
+    const currentContent = document.getElementById('emailBody').value;
+    if (!currentContent.trim()) {
+        showNotification('Please write some content first', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/ai/enhance-content/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${authToken}`
+            },
+            body: JSON.stringify({
+                program_id: programId,
+                coordinator_id: coordinatorId,
+                current_content: currentContent,
+                enhancement_type: enhancementType
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayEnhancedContent(data.enhanced_content, data.original_content);
+        } else {
+            showNotification(`Error: ${data.error}`, 'error');
+        }
+    } catch (error) {
+        console.error('Error enhancing email content:', error);
+        showNotification('Failed to enhance email content', 'error');
+    }
+}
+
+// Display AI suggestions
+function displayAISuggestions(suggestions) {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h4 class="font-semibold text-blue-800 mb-3">🤖 AI Email Assistant</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-blue-700 mb-1">Suggested Subject:</label>
+                    <div class="flex items-center space-x-2">
+                        <input type="text" id="aiSubject" value="${suggestions.subject}" 
+                               class="flex-1 px-3 py-2 border border-blue-300 rounded-md text-sm">
+                        <button onclick="useAISuggestion()" 
+                                class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                            Use
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-blue-700 mb-1">Suggested Content:</label>
+                    <div class="space-y-2">
+                        <textarea id="aiContent" rows="6" 
+                                  class="w-full px-3 py-2 border border-blue-300 rounded-md text-sm">${suggestions.content}</textarea>
+                        <div class="flex space-x-2">
+                            <button onclick="useAISuggestion()" 
+                                    class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                                Use This Content
+                            </button>
+                            <button onclick="generateAISubjectOptions()" 
+                                    class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
+                                More Subjects
+                            </button>
+                            <button onclick="generateAISuggestions()" 
+                                    class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                                Generate Full Email
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+}
+
+// Display AI subject options
+function displayAISubjectOptions(subjectOptions) {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (!container) return;
+    
+    const subjectsHtml = subjectOptions.map((subject, index) => `
+        <div class="flex items-center space-x-2 p-2 bg-white border border-gray-200 rounded">
+            <input type="text" value="${subject}" readonly 
+                   class="flex-1 px-2 py-1 border-none bg-transparent text-sm">
+            <button onclick="useAISubjectOption(${index})" 
+                    class="px-2 py-1 bg-blue-600 text-white rounded text-xs hover:bg-blue-700">
+                Use
+            </button>
+        </div>
+    `).join('');
+    
+    container.innerHTML = `
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+            <h4 class="font-semibold text-green-800 mb-3">📝 AI Subject Options</h4>
+            <div class="space-y-2 mb-3">
+                ${subjectsHtml}
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="generateAISubjectOptions()" 
+                        class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
+                    Generate More
+                </button>
+                <button onclick="generateAISuggestions()" 
+                        class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+                    Generate Full Email
+                </button>
+            </div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+}
+
+// Display enhanced content
+function displayEnhancedContent(enhancedContent, originalContent) {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-4">
+            <h4 class="font-semibold text-purple-800 mb-3">✨ Enhanced Content</h4>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-purple-700 mb-1">Enhanced Version:</label>
+                    <textarea id="enhancedContent" rows="6" 
+                              class="w-full px-3 py-2 border border-purple-300 rounded-md text-sm">${enhancedContent}</textarea>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="useEnhancedContent()" 
+                            class="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm">
+                        Use Enhanced Version
+                    </button>
+                    <button onclick="showOriginalContent()" 
+                            class="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm">
+                        Show Original
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    container.classList.remove('hidden');
+}
+
+// Use AI suggestion
+function useAISuggestion() {
+    const subject = document.getElementById('aiSubject')?.value;
+    const content = document.getElementById('aiContent')?.value;
+    
+    if (subject) document.getElementById('emailSubject').value = subject;
+    if (content) document.getElementById('emailBody').value = content;
+    
+    hideAISuggestions();
+    showNotification('AI suggestion applied!', 'success');
+}
+
+// Use AI subject option
+function useAISubjectOption(index) {
+    const container = document.getElementById('aiSuggestionsContainer');
+    const subjectInput = container.querySelectorAll('input[type="text"]')[index];
+    if (subjectInput) {
+        document.getElementById('emailSubject').value = subjectInput.value;
+        hideAISuggestions();
+        showNotification('Subject applied!', 'success');
+    }
+}
+
+// Use enhanced content
+function useEnhancedContent() {
+    const enhancedContent = document.getElementById('enhancedContent')?.value;
+    if (enhancedContent) {
+        document.getElementById('emailBody').value = enhancedContent;
+        hideAISuggestions();
+        showNotification('Enhanced content applied!', 'success');
+    }
+}
+
+// Show original content
+function showOriginalContent() {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+// Hide AI suggestions
+function hideAISuggestions() {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (container) {
+        container.classList.add('hidden');
+    }
+}
+
+// Show AI loading state
+function showAILoadingState(message = 'Generating AI suggestions...') {
+    const container = document.getElementById('aiSuggestionsContainer');
+    if (!container) return;
+    
+    container.innerHTML = `
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-4">
+            <div class="flex items-center space-x-3">
+                <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                <span class="text-gray-600">${message}</span>
+            </div>
+        </div>
+    `;
+    container.classList.remove('hidden');
 }
 
 console.log('UniWorld app.js loaded successfully!');

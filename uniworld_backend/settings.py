@@ -40,15 +40,16 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     
-    # Third party apps (temporarily disabled)
-    # 'rest_framework',
-    # 'rest_framework_simplejwt',
-    # 'corsheaders',
+    # Third party apps
+    'rest_framework',
+    # 'rest_framework_simplejwt',  # Temporarily disabled
+    # 'corsheaders',  # Temporarily disabled
     
     # Local apps (accounts temporarily disabled due to User model conflict)
     # 'accounts',
     'universities',
     'payments',
+    'ai_services',
 ]
 
 MIDDLEWARE = [
@@ -141,6 +142,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 STRIPE_PUBLISHABLE_KEY = 'pk_test_your_stripe_publishable_key_here'
 STRIPE_SECRET_KEY = 'sk_test_your_stripe_secret_key_here'
 STRIPE_WEBHOOK_SECRET = 'whsec_your_webhook_secret_here'
+
+# OpenAI Configuration
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-3.5-turbo')
 
 # Django REST Framework (temporarily disabled)
 # REST_FRAMEWORK = {

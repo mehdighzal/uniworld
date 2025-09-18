@@ -60,6 +60,9 @@ urlpatterns = [
     path('subscription/success/', subscription_success, name='subscription-success'),
     path('subscription/cancel/', subscription_cancel, name='subscription-cancel'),
     
+    # AI Services Endpoints
+    path('api/ai/', include('ai_services.urls')),
+    
     # API Documentation (temporarily disabled)
     # path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     # path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
