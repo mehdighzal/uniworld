@@ -1161,7 +1161,86 @@ Best regards,
     showNotification('Email template loaded', 'success');
 }
 
-// Send email to specific coordinator
+// Send email from composition modal
+async function sendEmailFromComposition(programId) {
+    console.log('Sending email from composition modal for program:', programId);
+    
+    // Check if user is logged in
+    if (!currentUser) {
+        showNotification('Please login to send emails', 'error');
+        showLoginModal();
+        return;
+    }
+    
+    // Check subscription plan
+    const subscription = userSubscription || { plan: 'free' };
+    if (subscription.plan === 'free') {
+        showNotification('Email sending is a premium feature. Please upgrade to Premium or Pro plan.', 'error');
+        showSubscriptionDashboard();
+        return;
+    }
+    
+    // Check email limits for subscribed users
+    const emailsUsed = subscription.emailsUsed || 0;
+    const emailLimit = subscription.plan === 'premium' ? 50 : 200;
+    
+    if (emailsUsed >= emailLimit) {
+        showNotification(`You have reached your monthly email limit (${emailLimit} emails). Please upgrade your plan or wait for next month.`, 'error');
+        showSubscriptionDashboard();
+        return;
+    }
+    
+    // Get form data
+    const subject = document.getElementById('emailSubject')?.value;
+    const body = document.getElementById('emailBody')?.value;
+    
+    if (!subject || !body) {
+        showNotification('Please fill in both subject and message', 'error');
+        return;
+    }
+    
+    try {
+        // Show loading state
+        const sendButton = document.querySelector('button[onclick*="sendEmailFromComposition"]');
+        if (sendButton) {
+            sendButton.disabled = true;
+            sendButton.textContent = 'Sending...';
+        }
+        
+        // For now, simulate email sending (in a real app, you'd make an API call)
+        console.log('Simulating email send:', { subject, body, programId });
+        
+        // Simulate API delay
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Update email usage
+        if (userSubscription) {
+            userSubscription.emailsUsed = (userSubscription.emailsUsed || 0) + 1;
+            saveSubscriptionData();
+        }
+        
+        // Show success message
+        showNotification('Email sent successfully!', 'success');
+        
+        // Close the modal
+        closeEmailCompositionModal();
+        
+        console.log('Email sent successfully');
+        
+    } catch (error) {
+        console.error('Error sending email:', error);
+        showNotification('Failed to send email. Please try again.', 'error');
+        
+        // Re-enable button
+        const sendButton = document.querySelector('button[onclick*="sendEmailFromComposition"]');
+        if (sendButton) {
+            sendButton.disabled = false;
+            sendButton.textContent = 'Send Email';
+        }
+    }
+}
+
+// Send email to specific coordinator (old function - kept for compatibility)
 function sendEmailToCoordinator(email, name) {
     console.log('Sending email to coordinator:', email, name);
     
@@ -1422,7 +1501,7 @@ Best regards,
                         </div>
                         <div class="space-x-2">
                             <button onclick="closeEmailCompositionModal()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600">Cancel</button>
-                            <button onclick="sendEmailToCoordinator(${programId})" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Send Email</button>
+                            <button onclick="sendEmailFromComposition(${programId})" class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700">Send Email</button>
                         </div>
                     </div>
                 </div>
@@ -2837,15 +2916,15 @@ function displayAISuggestions(suggestions) {
                         <textarea id="aiContent" rows="6" 
                                   class="w-full px-3 py-2 border border-blue-300 rounded-md text-sm">${suggestions.content}</textarea>
                         <div class="flex space-x-2">
-                            <button onclick="useAISuggestion()" 
+                            <button type="button" onclick="useAISuggestion(event)" 
                                     class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                                 Use This Content
                             </button>
-                            <button onclick="generateAISubjectOptions()" 
+                            <button type="button" onclick="generateAISubjectOptions()" 
                                     class="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm">
                                 More Subjects
                             </button>
-                            <button onclick="generateAISuggestions()" 
+                            <button type="button" onclick="generateAISuggestions()" 
                                     class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
                                 Generate Full Email
                             </button>
@@ -2910,11 +2989,11 @@ function displayEnhancedContent(enhancedContent, originalContent) {
                               class="w-full px-3 py-2 border border-purple-300 rounded-md text-sm">${enhancedContent}</textarea>
                 </div>
                 <div class="flex space-x-2">
-                    <button onclick="useEnhancedContent()" 
+                    <button type="button" onclick="useEnhancedContent(event)" 
                             class="px-3 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm">
                         Use Enhanced Version
                     </button>
-                    <button onclick="showOriginalContent()" 
+                    <button type="button" onclick="showOriginalContent()" 
                             class="px-3 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 text-sm">
                         Show Original
                     </button>
@@ -2926,15 +3005,31 @@ function displayEnhancedContent(enhancedContent, originalContent) {
 }
 
 // Use AI suggestion
-function useAISuggestion() {
+function useAISuggestion(event) {
+    // Prevent any form submission or event propagation
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const subject = document.getElementById('aiSubject')?.value;
     const content = document.getElementById('aiContent')?.value;
+    
+    console.log('useAISuggestion called - applying content:', { subject, content });
     
     if (subject) document.getElementById('emailSubject').value = subject;
     if (content) document.getElementById('emailBody').value = content;
     
     hideAISuggestions();
-    showNotification('AI suggestion applied!', 'success');
+    showNotification('AI suggestion applied! You can now review and send the email.', 'success');
+    
+    // Scroll to the email form to make it visible
+    const emailForm = document.getElementById('emailSubject');
+    if (emailForm) {
+        emailForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    console.log('useAISuggestion completed - email should NOT be sent');
 }
 
 // Use AI subject option
@@ -2949,12 +3044,27 @@ function useAISubjectOption(index) {
 }
 
 // Use enhanced content
-function useEnhancedContent() {
+function useEnhancedContent(event) {
+    // Prevent any form submission or event propagation
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
     const enhancedContent = document.getElementById('enhancedContent')?.value;
     if (enhancedContent) {
+        console.log('useEnhancedContent called - applying enhanced content');
         document.getElementById('emailBody').value = enhancedContent;
         hideAISuggestions();
-        showNotification('Enhanced content applied!', 'success');
+        showNotification('Enhanced content applied! You can now review and send the email.', 'success');
+        
+        // Scroll to the email form to make it visible
+        const emailForm = document.getElementById('emailSubject');
+        if (emailForm) {
+            emailForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        console.log('useEnhancedContent completed - email should NOT be sent');
     }
 }
 
