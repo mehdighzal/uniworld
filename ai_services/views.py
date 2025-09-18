@@ -30,6 +30,7 @@ def generate_email_suggestions(request):
         "program_id": int,
         "coordinator_id": int,
         "email_type": "inquiry|admission|scholarship",
+        "language": "en|it|fr|es|de|pt|nl|ru|zh|ja|ko|ar",
         "student_profile": {
             "background": "Computer Science",
             "interests": "AI and Machine Learning",
@@ -43,6 +44,7 @@ def generate_email_suggestions(request):
         program_id = data.get('program_id')
         coordinator_id = data.get('coordinator_id')
         email_type = data.get('email_type', 'inquiry')
+        language = data.get('language', 'en')
         student_profile = data.get('student_profile', {})
         custom_requirements = data.get('custom_requirements', [])
         
@@ -67,7 +69,8 @@ def generate_email_suggestions(request):
             coordinator_name=coordinator.name,
             coordinator_role=coordinator.role,
             email_type=email_type,
-            student_profile=student_profile
+            student_profile=student_profile,
+            language=language
         )
         
         # Add custom requirements to content if provided

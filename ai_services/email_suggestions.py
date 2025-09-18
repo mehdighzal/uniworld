@@ -24,7 +24,8 @@ class EmailSuggestionService:
                              university_name: str, 
                              coordinator_name: str,
                              email_type: str = 'inquiry',
-                             student_profile: Optional[Dict] = None) -> str:
+                             student_profile: Optional[Dict] = None,
+                             language: str = 'en') -> str:
         """
         Generate an AI-powered email subject line
         
@@ -34,6 +35,7 @@ class EmailSuggestionService:
             coordinator_name: Name of the coordinator
             email_type: Type of email (inquiry, admission, scholarship, etc.)
             student_profile: Optional student profile information
+            language: Language code (en, it, fr, es, de, pt, nl, ru, zh, ja, ko, ar)
             
         Returns:
             Generated subject line
@@ -41,13 +43,13 @@ class EmailSuggestionService:
         try:
             prompt = self._build_subject_prompt(
                 program_name, university_name, coordinator_name, 
-                email_type, student_profile
+                email_type, student_profile, language
             )
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert academic communication assistant. Generate professional, concise email subject lines for students contacting university coordinators."},
+                    {"role": "system", "content": f"You are an expert academic communication assistant. Generate professional, concise email subject lines for students contacting university coordinators. Respond in {language}."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=100,
@@ -73,7 +75,8 @@ class EmailSuggestionService:
                               coordinator_role: str,
                               email_type: str = 'inquiry',
                               student_profile: Optional[Dict] = None,
-                              custom_requirements: Optional[List[str]] = None) -> str:
+                              custom_requirements: Optional[List[str]] = None,
+                              language: str = 'en') -> str:
         """
         Generate AI-powered email content
         
@@ -85,6 +88,7 @@ class EmailSuggestionService:
             email_type: Type of email (inquiry, admission, scholarship, etc.)
             student_profile: Optional student profile information
             custom_requirements: Optional list of specific requirements/questions
+            language: Language code (en, it, fr, es, de, pt, nl, ru, zh, ja, ko, ar)
             
         Returns:
             Generated email content
@@ -92,13 +96,13 @@ class EmailSuggestionService:
         try:
             prompt = self._build_content_prompt(
                 program_name, university_name, coordinator_name, 
-                coordinator_role, email_type, student_profile, custom_requirements
+                coordinator_role, email_type, student_profile, custom_requirements, language
             )
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are an expert academic communication assistant. Generate professional, personalized email content for students contacting university coordinators. Be respectful, specific, and demonstrate genuine interest in the program."},
+                    {"role": "system", "content": f"You are an expert academic communication assistant. Generate professional, personalized email content for students contacting university coordinators. Be respectful, specific, and demonstrate genuine interest in the program. Respond in {language}."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=800,
@@ -239,32 +243,190 @@ Return only the enhanced email content."""
             logger.error(f"Error enhancing email content: {str(e)}")
             return self._fallback_content(program_name, university_name, coordinator_name, 'inquiry')
     
-    def _build_subject_prompt(self, program_name, university_name, coordinator_name, email_type, student_profile):
+    def _build_subject_prompt(self, program_name, university_name, coordinator_name, email_type, student_profile, language='en'):
         """Build the prompt for subject generation"""
-        prompt = f"""Generate a professional email subject line for a student contacting {coordinator_name} at {university_name} about the {program_name} program.
+        # Language-specific prompts
+        language_prompts = {
+            'en': f"""Generate a professional email subject line for a student contacting {coordinator_name} at {university_name} about the {program_name} program.
 
 Email type: {email_type}
 Program: {program_name}
 University: {university_name}
-Coordinator: {coordinator_name}"""
+Coordinator: {coordinator_name}""",
+            'it': f"""Genera un oggetto email professionale per uno studente che contatta {coordinator_name} presso {university_name} riguardo al programma {program_name}.
+
+Tipo email: {email_type}
+Programma: {program_name}
+Università: {university_name}
+Coordinatore: {coordinator_name}""",
+            'fr': f"""Générez un objet d'email professionnel pour un étudiant contactant {coordinator_name} à {university_name} concernant le programme {program_name}.
+
+Type d'email: {email_type}
+Programme: {program_name}
+Université: {university_name}
+Coordinateur: {coordinator_name}""",
+            'es': f"""Genera un asunto de email profesional para un estudiante que contacta a {coordinator_name} en {university_name} sobre el programa {program_name}.
+
+Tipo de email: {email_type}
+Programa: {program_name}
+Universidad: {university_name}
+Coordinador: {coordinator_name}""",
+            'de': f"""Generieren Sie einen professionellen E-Mail-Betreff für einen Studenten, der {coordinator_name} an der {university_name} bezüglich des Programms {program_name} kontaktiert.
+
+E-Mail-Typ: {email_type}
+Programm: {program_name}
+Universität: {university_name}
+Koordinator: {coordinator_name}""",
+            'pt': f"""Gere um assunto de email profissional para um estudante entrando em contato com {coordinator_name} na {university_name} sobre o programa {program_name}.
+
+Tipo de email: {email_type}
+Programa: {program_name}
+Universidade: {university_name}
+Coordenador: {coordinator_name}""",
+            'nl': f"""Genereer een professioneel email-onderwerp voor een student die {coordinator_name} bij {university_name} contacteert over het programma {program_name}.
+
+Email type: {email_type}
+Programma: {program_name}
+Universiteit: {university_name}
+Coördinator: {coordinator_name}""",
+            'ru': f"""Создайте профессиональную тему письма для студента, обращающегося к {coordinator_name} в {university_name} по поводу программы {program_name}.
+
+Тип письма: {email_type}
+Программа: {program_name}
+Университет: {university_name}
+Координатор: {coordinator_name}""",
+            'zh': f"""为联系{university_name}的{coordinator_name}询问{program_name}项目的学生生成专业的邮件主题。
+
+邮件类型: {email_type}
+项目: {program_name}
+大学: {university_name}
+协调员: {coordinator_name}""",
+            'ja': f"""{university_name}の{coordinator_name}に{program_name}プログラムについて連絡する学生のためのプロフェッショナルなメール件名を生成してください。
+
+メールタイプ: {email_type}
+プログラム: {program_name}
+大学: {university_name}
+コーディネーター: {coordinator_name}""",
+            'ko': f"""{university_name}의 {coordinator_name}에게 {program_name} 프로그램에 대해 연락하는 학생을 위한 전문적인 이메일 제목을 생성하세요.
+
+이메일 유형: {email_type}
+프로그램: {program_name}
+대학교: {university_name}
+코디네이터: {coordinator_name}""",
+            'ar': f"""قم بإنشاء موضوع بريد إلكتروني مهني لطالب يتصل بـ {coordinator_name} في {university_name} بخصوص برنامج {program_name}.
+
+نوع البريد الإلكتروني: {email_type}
+البرنامج: {program_name}
+الجامعة: {university_name}
+المنسق: {coordinator_name}"""
+        }
+        
+        prompt = language_prompts.get(language, language_prompts['en'])
 
         if student_profile:
             prompt += f"\nStudent background: {student_profile.get('background', 'Not specified')}"
             if student_profile.get('interests'):
                 prompt += f"\nStudent interests: {student_profile.get('interests')}"
 
-        prompt += "\n\nRequirements:\n- Professional and concise (under 60 characters)\n- Specific to the program and university\n- Appropriate for academic communication\n- Clear and direct"
+        # Language-specific requirements
+        requirements = {
+            'en': "\n\nRequirements:\n- Professional and concise (under 60 characters)\n- Specific to the program and university\n- Appropriate for academic communication\n- Clear and direct",
+            'it': "\n\nRequisiti:\n- Professionale e conciso (sotto i 60 caratteri)\n- Specifico per il programma e l'università\n- Appropriato per la comunicazione accademica\n- Chiaro e diretto",
+            'fr': "\n\nExigences:\n- Professionnel et concis (moins de 60 caractères)\n- Spécifique au programme et à l'université\n- Approprié pour la communication académique\n- Clair et direct",
+            'es': "\n\nRequisitos:\n- Profesional y conciso (menos de 60 caracteres)\n- Específico para el programa y la universidad\n- Apropiado para comunicación académica\n- Claro y directo",
+            'de': "\n\nAnforderungen:\n- Professionell und prägnant (unter 60 Zeichen)\n- Spezifisch für Programm und Universität\n- Angemessen für akademische Kommunikation\n- Klar und direkt",
+            'pt': "\n\nRequisitos:\n- Profissional e conciso (menos de 60 caracteres)\n- Específico para o programa e universidade\n- Apropriado para comunicação acadêmica\n- Claro e direto",
+            'nl': "\n\nVereisten:\n- Professioneel en beknopt (onder 60 tekens)\n- Specifiek voor programma en universiteit\n- Geschikt voor academische communicatie\n- Helder en direct",
+            'ru': "\n\nТребования:\n- Профессионально и кратко (менее 60 символов)\n- Специфично для программы и университета\n- Подходяще для академического общения\n- Ясно и прямо",
+            'zh': "\n\n要求:\n- 专业简洁（少于60个字符）\n- 针对项目和大学\n- 适合学术交流\n- 清晰直接",
+            'ja': "\n\n要件:\n- プロフェッショナルで簡潔（60文字未満）\n- プログラムと大学に特化\n- 学術コミュニケーションに適切\n- 明確で直接的",
+            'ko': "\n\n요구사항:\n- 전문적이고 간결함 (60자 미만)\n- 프로그램과 대학교에 특화\n- 학술 커뮤니케이션에 적합\n- 명확하고 직접적",
+            'ar': "\n\nالمتطلبات:\n- مهني ومختصر (أقل من 60 حرف)\n- محدد للبرنامج والجامعة\n- مناسب للتواصل الأكاديمي\n- واضح ومباشر"
+        }
+        
+        prompt += requirements.get(language, requirements['en'])
 
         return prompt
     
-    def _build_content_prompt(self, program_name, university_name, coordinator_name, coordinator_role, email_type, student_profile, custom_requirements):
+    def _build_content_prompt(self, program_name, university_name, coordinator_name, coordinator_role, email_type, student_profile, custom_requirements, language='en'):
         """Build the prompt for content generation"""
-        prompt = f"""Write a professional email for a student contacting {coordinator_name} ({coordinator_role}) at {university_name} about the {program_name} program.
+        # Language-specific prompts
+        language_prompts = {
+            'en': f"""Write a professional email for a student contacting {coordinator_name} ({coordinator_role}) at {university_name} about the {program_name} program.
 
 Email type: {email_type}
 Program: {program_name}
 University: {university_name}
-Coordinator: {coordinator_name} ({coordinator_role})"""
+Coordinator: {coordinator_name} ({coordinator_role})""",
+            'it': f"""Scrivi un'email professionale per uno studente che contatta {coordinator_name} ({coordinator_role}) presso {university_name} riguardo al programma {program_name}.
+
+Tipo email: {email_type}
+Programma: {program_name}
+Università: {university_name}
+Coordinatore: {coordinator_name} ({coordinator_role})""",
+            'fr': f"""Écrivez un email professionnel pour un étudiant contactant {coordinator_name} ({coordinator_role}) à {university_name} concernant le programme {program_name}.
+
+Type d'email: {email_type}
+Programme: {program_name}
+Université: {university_name}
+Coordinateur: {coordinator_name} ({coordinator_role})""",
+            'es': f"""Escribe un email profesional para un estudiante que contacta a {coordinator_name} ({coordinator_role}) en {university_name} sobre el programa {program_name}.
+
+Tipo de email: {email_type}
+Programa: {program_name}
+Universidad: {university_name}
+Coordinador: {coordinator_name} ({coordinator_role})""",
+            'de': f"""Schreiben Sie eine professionelle E-Mail für einen Studenten, der {coordinator_name} ({coordinator_role}) an der {university_name} bezüglich des Programms {program_name} kontaktiert.
+
+E-Mail-Typ: {email_type}
+Programm: {program_name}
+Universität: {university_name}
+Koordinator: {coordinator_name} ({coordinator_role})""",
+            'pt': f"""Escreva um email profissional para um estudante entrando em contato com {coordinator_name} ({coordinator_role}) na {university_name} sobre o programa {program_name}.
+
+Tipo de email: {email_type}
+Programa: {program_name}
+Universidade: {university_name}
+Coordenador: {coordinator_name} ({coordinator_role})""",
+            'nl': f"""Schrijf een professionele email voor een student die {coordinator_name} ({coordinator_role}) bij {university_name} contacteert over het programma {program_name}.
+
+Email type: {email_type}
+Programma: {program_name}
+Universiteit: {university_name}
+Coördinator: {coordinator_name} ({coordinator_role})""",
+            'ru': f"""Напишите профессиональное письмо для студента, обращающегося к {coordinator_name} ({coordinator_role}) в {university_name} по поводу программы {program_name}.
+
+Тип письма: {email_type}
+Программа: {program_name}
+Университет: {university_name}
+Координатор: {coordinator_name} ({coordinator_role})""",
+            'zh': f"""为联系{university_name}的{coordinator_name}（{coordinator_role}）询问{program_name}项目的学生写一封专业邮件。
+
+邮件类型: {email_type}
+项目: {program_name}
+大学: {university_name}
+协调员: {coordinator_name} ({coordinator_role})""",
+            'ja': f"""{university_name}の{coordinator_name}（{coordinator_role}）に{program_name}プログラムについて連絡する学生のためのプロフェッショナルなメールを書いてください。
+
+メールタイプ: {email_type}
+プログラム: {program_name}
+大学: {university_name}
+コーディネーター: {coordinator_name} ({coordinator_role})""",
+            'ko': f"""{university_name}의 {coordinator_name}（{coordinator_role}）에게 {program_name} 프로그램에 대해 연락하는 학생을 위한 전문적인 이메일을 작성하세요.
+
+이메일 유형: {email_type}
+프로그램: {program_name}
+대학교: {university_name}
+코디네이터: {coordinator_name} ({coordinator_role})""",
+            'ar': f"""اكتب بريد إلكتروني مهني لطالب يتصل بـ {coordinator_name} ({coordinator_role}) في {university_name} بخصوص برنامج {program_name}.
+
+نوع البريد الإلكتروني: {email_type}
+البرنامج: {program_name}
+الجامعة: {university_name}
+المنسق: {coordinator_name} ({coordinator_role})"""
+        }
+        
+        prompt = language_prompts.get(language, language_prompts['en'])
 
         if student_profile:
             prompt += f"\nStudent background: {student_profile.get('background', 'Not specified')}"
@@ -316,7 +478,8 @@ def get_email_suggestions(program_name: str,
                           coordinator_name: str,
                           coordinator_role: str = 'coordinator',
                           email_type: str = 'inquiry',
-                          student_profile: Optional[Dict] = None) -> Dict[str, str]:
+                          student_profile: Optional[Dict] = None,
+                          language: str = 'en') -> Dict[str, str]:
     """
     Get complete email suggestions (subject + content)
     
@@ -326,12 +489,12 @@ def get_email_suggestions(program_name: str,
     service = EmailSuggestionService()
     
     subject = service.generate_email_subject(
-        program_name, university_name, coordinator_name, email_type, student_profile
+        program_name, university_name, coordinator_name, email_type, student_profile, language
     )
     
     content = service.generate_email_content(
         program_name, university_name, coordinator_name, coordinator_role, 
-        email_type, student_profile
+        email_type, student_profile, language
     )
     
     return {

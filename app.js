@@ -1446,8 +1446,28 @@ async function showEmailCompositionModal(programId) {
                     </div>
                     
                     <!-- AI Email Assistant -->
-                    <div>
+                    <div class="bg-blue-50 p-4 rounded-lg border border-blue-200">
                         <label class="block text-sm font-medium text-gray-700 mb-2">🤖 AI Email Assistant</label>
+                        
+                        <!-- Language Selection -->
+                        <div class="mb-4 bg-white p-3 rounded border">
+                            <label class="block text-sm font-medium text-gray-600 mb-2">🌍 Language / Lingua / Langue / Idioma</label>
+                            <select id="emailLanguage" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="en">🇺🇸 English</option>
+                                <option value="it">🇮🇹 Italiano</option>
+                                <option value="fr">🇫🇷 Français</option>
+                                <option value="es">🇪🇸 Español</option>
+                                <option value="de">🇩🇪 Deutsch</option>
+                                <option value="pt">🇵🇹 Português</option>
+                                <option value="nl">🇳🇱 Nederlands</option>
+                                <option value="ru">🇷🇺 Русский</option>
+                                <option value="zh">🇨🇳 中文</option>
+                                <option value="ja">🇯🇵 日本語</option>
+                                <option value="ko">🇰🇷 한국어</option>
+                                <option value="ar">🇸🇦 العربية</option>
+                            </select>
+                        </div>
+                        
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
                             <button type="button" onclick="generateAISuggestions()" 
                                     class="px-3 py-2 bg-blue-100 text-blue-800 rounded-md hover:bg-blue-200 text-sm">
@@ -1510,6 +1530,17 @@ Best regards,
     `;
     
     document.body.insertAdjacentHTML('beforeend', modalHTML);
+    
+    // Debug: Check if the language dropdown is present
+    setTimeout(() => {
+        const languageDropdown = document.getElementById('emailLanguage');
+        if (languageDropdown) {
+            console.log('✅ Language dropdown found:', languageDropdown);
+            console.log('✅ Language dropdown options:', languageDropdown.options.length);
+        } else {
+            console.error('❌ Language dropdown NOT found!');
+        }
+    }, 100);
 }
 
 // Close email composition modal
@@ -2749,7 +2780,10 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
-    console.log('AI function called with:', { programId, coordinatorId, emailType });
+    // Get selected language
+    const language = document.getElementById('emailLanguage')?.value || 'en';
+    
+    console.log('AI function called with:', { programId, coordinatorId, emailType, language });
     console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
     
     if (!programId || !coordinatorId) {
@@ -2771,7 +2805,8 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
             body: JSON.stringify({
                 program_id: programId,
                 coordinator_id: coordinatorId,
-                email_type: emailType
+                email_type: emailType,
+                language: language
             })
         });
         
@@ -2798,7 +2833,10 @@ async function generateAISubjectOptions(programId = null, coordinatorId = null, 
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
-    console.log('AI subject function called with:', { programId, coordinatorId, emailType, count });
+    // Get selected language
+    const language = document.getElementById('emailLanguage')?.value || 'en';
+    
+    console.log('AI subject function called with:', { programId, coordinatorId, emailType, count, language });
     console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
     
     if (!programId || !coordinatorId) {
@@ -2821,7 +2859,8 @@ async function generateAISubjectOptions(programId = null, coordinatorId = null, 
                 program_id: programId,
                 coordinator_id: coordinatorId,
                 email_type: emailType,
-                count: count
+                count: count,
+                language: language
             })
         });
         
@@ -2847,6 +2886,9 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
+    // Get selected language
+    const language = document.getElementById('emailLanguage')?.value || 'en';
+    
     if (!programId || !coordinatorId) {
         showNotification('Please select a program and coordinator first', 'error');
         return;
@@ -2869,7 +2911,8 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
                 program_id: programId,
                 coordinator_id: coordinatorId,
                 current_content: currentContent,
-                enhancement_type: enhancementType
+                enhancement_type: enhancementType,
+                language: language
             })
         });
         
