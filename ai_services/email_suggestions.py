@@ -63,7 +63,7 @@ class EmailSuggestionService:
             )
             
             # Create a system message for Gemini
-            full_prompt = f"You are an expert academic communication assistant. Generate ONE professional, concise email subject line for students contacting university coordinators. Return ONLY the subject line, no explanations or multiple options. Respond in {language}.\n\n{prompt}"
+            full_prompt = f"IMPORTANT: You MUST respond in {language.upper()} language only. Generate ONE professional, concise email subject line for students contacting university coordinators. Return ONLY the subject line, no explanations or multiple options. Language: {language.upper()}.\n\n{prompt}"
             
             response = self.model.generate_content(full_prompt)
             return response.text.strip()
@@ -109,7 +109,7 @@ class EmailSuggestionService:
             logger.info(f"Prompt preview: {prompt[:200]}...")
             
             # Create a system message for Gemini
-            full_prompt = f"You are an expert academic communication assistant. Generate professional, personalized email content for students contacting university coordinators. Be respectful, specific, and demonstrate genuine interest in the program. Return ONLY the email body content (no subject line). Respond in {language}.\n\n{prompt}"
+            full_prompt = f"CRITICAL: You MUST write the entire email content in {language.upper()} language. Do NOT use English. Write ONLY in {language.upper()}. Generate professional, personalized email content for students contacting university coordinators. Be respectful, specific, and demonstrate genuine interest in the program. Return ONLY the email body content (no subject line). Language requirement: {language.upper()} ONLY.\n\n{prompt}"
             
             response = self.model.generate_content(full_prompt)
             content = response.text.strip()
@@ -702,7 +702,7 @@ Coördinator: {coordinator_name}""",
         # Language-specific requirements
         requirements = {
             'en': "\n\nRequirements:\n- Professional and concise (under 60 characters)\n- Specific to the program and university\n- Appropriate for academic communication\n- Clear and direct\n- Return ONLY the subject line, no explanations or multiple options",
-            'it': "\n\nRequisiti:\n- Professionale e conciso (sotto i 60 caratteri)\n- Specifico per il programma e l'università\n- Appropriato per la comunicazione accademica\n- Chiaro e diretto",
+            'it': "\n\nRequisiti:\n- Professionale e conciso (sotto i 60 caratteri)\n- Specifico per il programma e l'università\n- Appropriato per la comunicazione accademica\n- Chiaro e diretto\n- Restituisci SOLO la riga oggetto, nessuna spiegazione o opzioni multiple\n- IMPORTANTE: Rispondi SOLO in italiano",
             'fr': "\n\nExigences:\n- Professionnel et concis (moins de 60 caractères)\n- Spécifique au programme et à l'université\n- Approprié pour la communication académique\n- Clair et direct",
             'es': "\n\nRequisitos:\n- Profesional y conciso (menos de 60 caracteres)\n- Específico para el programa y la universidad\n- Apropiado para comunicación académica\n- Claro y directo",
             'de': "\n\nAnforderungen:\n- Professionell und prägnant (unter 60 Zeichen)\n- Spezifisch für Programm und Universität\n- Angemessen für akademische Kommunikation\n- Klar und direkt",
@@ -834,7 +834,9 @@ Requisiti:
 - Mantienilo conciso ma informativo
 - Usa il formato email accademico appropriato
 - Includi saluto e chiusura
-- Personalizza in base al ruolo del coordinatore""",
+- Personalizza in base al ruolo del coordinatore
+- Restituisci SOLO il contenuto del corpo email (nessuna riga oggetto)
+- IMPORTANTE: Rispondi SOLO in italiano""",
             'fr': """
 
 Exigences:

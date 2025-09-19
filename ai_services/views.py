@@ -65,31 +65,33 @@ def generate_email_suggestions(request):
                 'error': 'Program or coordinator not found'
             }, status=404)
         
-        # Generate AI suggestions
-        suggestions = get_email_suggestions(
+        # Generate AI suggestions using service directly
+        service = EmailSuggestionService()
+        
+        subject = service.generate_email_subject(
+            program_name=program.name,
+            university_name=program.university.name,
+            coordinator_name=coordinator.name,
+            email_type=email_type,
+            student_profile=student_profile,
+            language=language
+        )
+        
+        content = service.generate_email_content(
             program_name=program.name,
             university_name=program.university.name,
             coordinator_name=coordinator.name,
             coordinator_role=coordinator.role,
             email_type=email_type,
             student_profile=student_profile,
+            custom_requirements=custom_requirements,
             language=language
         )
         
-        # Add custom requirements to content if provided
-        if custom_requirements:
-            service = EmailSuggestionService()
-            enhanced_content = service.generate_email_content(
-                program_name=program.name,
-                university_name=program.university.name,
-                coordinator_name=coordinator.name,
-                coordinator_role=coordinator.role,
-                email_type=email_type,
-                student_profile=student_profile,
-                custom_requirements=custom_requirements,
-                language=language
-            )
-            suggestions['content'] = enhanced_content
+        suggestions = {
+            'subject': subject,
+            'content': content
+        }
         
         return JsonResponse({
             'success': True,
