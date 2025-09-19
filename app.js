@@ -238,8 +238,9 @@ async function apiRequest(endpoint, options = {}) {
         ...options
     };
     
-    if (authToken) {
-        config.headers.Authorization = `Bearer ${authToken}`;
+    const token = localStorage.getItem('token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
     }
     
     try {
@@ -2796,11 +2797,12 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
     showAILoadingState('Generating AI email suggestions...');
     
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/ai/generate-suggestions/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 program_id: programId,
@@ -2835,6 +2837,133 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
     }
 }
 
+// Generate AI subject for bulk email
+async function generateBulkAISubject() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showNotification('Please log in to use AI features', 'error');
+        return;
+    }
+    
+    if (selectedPrograms.length === 0) {
+        showNotification('Please select at least one program first', 'error');
+        return;
+    }
+    
+    try {
+        // Use the first selected program for AI generation
+        const firstProgram = selectedPrograms[0];
+        
+        // Get coordinators for the first program
+        const data = await apiRequest(`/coordinators/?program_id=${firstProgram.program_id}`);
+        const coordinators = data.results || data;
+        
+        if (coordinators.length === 0) {
+            showNotification('No coordinators found for selected programs', 'error');
+            return;
+        }
+        
+        const coordinator = coordinators[0];
+        const language = document.getElementById('bulkEmailLanguage')?.value || 'en';
+        const emailType = document.getElementById('bulkEmailType')?.value || 'inquiry';
+        
+        // Generate AI subject
+        const response = await fetch(`${API_BASE_URL}/ai/generate-subjects/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                program_id: firstProgram.id,
+                coordinator_id: coordinator.id,
+                email_type: emailType,
+                language: language,
+                count: 1
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.subject_options && data.subject_options.length > 0) {
+                document.getElementById('bulkEmailSubject').value = data.subject_options[0];
+                showNotification('AI subject generated successfully!', 'success');
+            } else {
+                showNotification('Failed to generate AI subject', 'error');
+            }
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+    } catch (error) {
+        console.error('Error generating bulk AI subject:', error);
+        showNotification('Failed to generate AI subject', 'error');
+    }
+}
+
+// Generate AI content for bulk email
+async function generateBulkAIContent() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        showNotification('Please log in to use AI features', 'error');
+        return;
+    }
+    
+    if (selectedPrograms.length === 0) {
+        showNotification('Please select at least one program first', 'error');
+        return;
+    }
+    
+    try {
+        // Use the first selected program for AI generation
+        const firstProgram = selectedPrograms[0];
+        
+        // Get coordinators for the first program
+        const data = await apiRequest(`/coordinators/?program_id=${firstProgram.program_id}`);
+        const coordinators = data.results || data;
+        
+        if (coordinators.length === 0) {
+            showNotification('No coordinators found for selected programs', 'error');
+            return;
+        }
+        
+        const coordinator = coordinators[0];
+        const language = document.getElementById('bulkEmailLanguage')?.value || 'en';
+        const emailType = document.getElementById('bulkEmailType')?.value || 'inquiry';
+        
+        // Generate AI content
+        const response = await fetch(`${API_BASE_URL}/ai/generate-suggestions/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+                program_id: firstProgram.id,
+                coordinator_id: coordinator.id,
+                email_type: emailType,
+                language: language
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.suggestions && data.suggestions.content) {
+                document.getElementById('bulkEmailBody').value = data.suggestions.content;
+                showNotification('AI content generated successfully!', 'success');
+            } else {
+                showNotification('Failed to generate AI content', 'error');
+            }
+        } else {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+    } catch (error) {
+        console.error('Error generating bulk AI content:', error);
+        showNotification('Failed to generate AI content', 'error');
+    }
+}
+
 // Generate multiple subject options
 async function generateAISubjectOptions(programId = null, coordinatorId = null, emailType = 'inquiry', count = 3) {
     // Use global variables if parameters not provided
@@ -2857,11 +2986,12 @@ async function generateAISubjectOptions(programId = null, coordinatorId = null, 
     showAILoadingState('Generating AI subject options...');
     
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/ai/generate-subjects/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 program_id: programId,
@@ -2909,11 +3039,12 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
     }
     
     try {
+        const token = localStorage.getItem('token');
         const response = await fetch(`${API_BASE_URL}/ai/enhance-content/`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${authToken}`
+                'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
                 program_id: programId,
