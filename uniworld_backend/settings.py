@@ -143,9 +143,13 @@ STRIPE_PUBLISHABLE_KEY = 'pk_test_your_stripe_publishable_key_here'
 STRIPE_SECRET_KEY = 'sk_test_your_stripe_secret_key_here'
 STRIPE_WEBHOOK_SECRET = 'whsec_your_webhook_secret_here'
 
-# OpenAI Configuration
-OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
-OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-3.5-turbo')
+# AI Configuration (Switched from OpenAI to Gemini)
+# OPENAI_API_KEY = config('OPENAI_API_KEY', default='')
+# OPENAI_MODEL = config('OPENAI_MODEL', default='gpt-3.5-turbo')
+
+# Gemini Configuration
+GEMINI_API_KEY = config('GEMINI_API_KEY', default='')
+GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
 
 # Django REST Framework (temporarily disabled)
 # REST_FRAMEWORK = {

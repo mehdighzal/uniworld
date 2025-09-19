@@ -10,4 +10,5 @@ urlpatterns = [
     path('templates/', views.get_ai_templates, name='get_templates'),
     path('generate-template/', views.generate_ai_template, name='generate_template'),
     path('generate-multiple-templates/', views.generate_multiple_templates, name='generate_multiple_templates'),
+    path('test-gemini/', views.test_gemini_connection, name='test_gemini'),
 ]

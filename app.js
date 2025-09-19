@@ -2810,6 +2810,14 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
             })
         });
         
+        console.log('API Request sent with language:', language);
+        console.log('Request body:', JSON.stringify({
+            program_id: programId,
+            coordinator_id: coordinatorId,
+            email_type: emailType,
+            language: language
+        }));
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }

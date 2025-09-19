@@ -5,6 +5,7 @@ AI-powered email suggestion API endpoints for UniWorld platform
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.conf import settings
 import json
 import logging
 import openai
@@ -48,6 +49,8 @@ def generate_email_suggestions(request):
         student_profile = data.get('student_profile', {})
         custom_requirements = data.get('custom_requirements', [])
         
+        logger.info(f"Received AI request - Program: {program_id}, Coordinator: {coordinator_id}, Language: {language}")
+        
         if not program_id or not coordinator_id:
             return JsonResponse({
                 'error': 'program_id and coordinator_id are required'
@@ -83,7 +86,8 @@ def generate_email_suggestions(request):
                 coordinator_role=coordinator.role,
                 email_type=email_type,
                 student_profile=student_profile,
-                custom_requirements=custom_requirements
+                custom_requirements=custom_requirements,
+                language=language
             )
             suggestions['content'] = enhanced_content
         
@@ -123,7 +127,8 @@ def generate_subject_options(request):
         "program_id": int,
         "coordinator_id": int,
         "email_type": "inquiry|admission|scholarship",
-        "count": 3
+        "count": 3,
+        "language": "en|it|fr|es|de|pt|nl|ru|zh|ja|ko|ar"
     }
     """
     try:
@@ -132,6 +137,7 @@ def generate_subject_options(request):
         coordinator_id = data.get('coordinator_id')
         email_type = data.get('email_type', 'inquiry')
         count = data.get('count', 3)
+        language = data.get('language', 'en')
         
         if not program_id or not coordinator_id:
             return JsonResponse({
@@ -153,7 +159,8 @@ def generate_subject_options(request):
             university_name=program.university.name,
             coordinator_name=coordinator.name,
             email_type=email_type,
-            count=count
+            count=count,
+            language=language
         )
         
         return JsonResponse({
@@ -191,7 +198,8 @@ def enhance_email_content(request):
         "coordinator_id": int,
         "current_content": "existing email content",
         "email_type": "inquiry|admission|scholarship",
-        "enhancement_type": "improve|personalize|shorten|expand"
+        "enhancement_type": "improve|personalize|shorten|expand",
+        "language": "en|it|fr|es|de|pt|nl|ru|zh|ja|ko|ar"
     }
     """
     try:
@@ -201,6 +209,7 @@ def enhance_email_content(request):
         current_content = data.get('current_content', '')
         email_type = data.get('email_type', 'inquiry')
         enhancement_type = data.get('enhancement_type', 'improve')
+        language = data.get('language', 'en')
         
         if not program_id or not coordinator_id or not current_content:
             return JsonResponse({
@@ -224,7 +233,8 @@ def enhance_email_content(request):
             university_name=program.university.name,
             coordinator_name=coordinator.name,
             coordinator_role=coordinator.role,
-            enhancement_type=enhancement_type
+            enhancement_type=enhancement_type,
+            language=language
         )
         
         return JsonResponse({
@@ -418,5 +428,30 @@ def generate_multiple_templates(request):
         logger.error(f"Error generating multiple templates: {str(e)}")
         return JsonResponse({
             'error': 'Failed to generate multiple templates',
+            'details': str(e)
+        }, status=500)
+
+
+@require_http_methods(["GET"])
+def test_gemini_connection(request):
+    """
+    Test Gemini API connection
+    """
+    try:
+        service = EmailSuggestionService()
+        success = service.test_gemini_connection()
+        
+        return JsonResponse({
+            'success': success,
+            'message': 'Gemini connection test completed',
+            'api_key_configured': bool(settings.GEMINI_API_KEY),
+            'model': getattr(settings, 'GEMINI_MODEL', 'gemini-1.5-flash')
+        })
+        
+    except Exception as e:
+        logger.error(f"Error testing Gemini connection: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': 'Failed to test Gemini connection',
             'details': str(e)
         }, status=500)
