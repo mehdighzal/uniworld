@@ -43,17 +43,17 @@ INSTALLED_APPS = [
     # Third party apps
     'rest_framework',
     # 'rest_framework_simplejwt',  # Temporarily disabled
-    # 'corsheaders',  # Temporarily disabled
+    'corsheaders',  # Re-enabled for session authentication
     
-    # Local apps (accounts temporarily disabled due to User model conflict)
-    # 'accounts',
+    # Local apps
+    'accounts',
     'universities',
     'payments',
     'ai_services',
 ]
 
 MIDDLEWARE = [
-    # 'corsheaders.middleware.CorsMiddleware',  # Temporarily disabled
+    'corsheaders.middleware.CorsMiddleware',  # Re-enabled for session authentication
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -135,8 +135,13 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Custom User Model (temporarily disabled)
-# AUTH_USER_MODEL = 'accounts.User'
+# Custom User Model
+AUTH_USER_MODEL = 'accounts.User'
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+]
 
 # Stripe Configuration
 STRIPE_PUBLISHABLE_KEY = 'pk_test_your_stripe_publishable_key_here'
@@ -196,15 +201,21 @@ GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
 #     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
 # }
 
-# CORS Settings (temporarily disabled)
-# CORS_ALLOWED_ORIGINS = [
-#     "http://localhost:3000",
-#     "http://127.0.0.1:3000",
-#     "http://localhost:8000",
-#     "http://127.0.0.1:8000",
-# ]
+# CORS Settings (re-enabled for session authentication)
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
 
-# CORS_ALLOW_CREDENTIALS = True
+# Session settings for proper cookie handling
+SESSION_COOKIE_SECURE = False  # Set to True in production with HTTPS
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+SESSION_COOKIE_AGE = 1209600  # 2 weeks
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_EXPIRE_AT_BROWSER_CLOSE = False
 
 # API Documentation
 # SPECTACULAR_SETTINGS = {

@@ -49,6 +49,35 @@ def generate_email_suggestions(request):
         student_profile = data.get('student_profile', {})
         custom_requirements = data.get('custom_requirements', [])
         
+        # Get user profile data if user is authenticated
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            user_profile = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'full_name': request.user.full_name,
+                'nationality': request.user.nationality,
+                'age': request.user.age,
+                'phone_number': request.user.phone_number,
+                'degree': request.user.degree,
+                'major': request.user.major,
+                'university': request.user.university,
+                'graduation_year': request.user.graduation_year,
+                'gpa': request.user.gpa,
+                'current_position': request.user.current_position,
+                'company': request.user.company,
+                'work_experience_years': request.user.work_experience_years,
+                'relevant_experience': request.user.relevant_experience,
+                'interests': request.user.interests,
+                'languages_spoken': request.user.languages_spoken,
+                'linkedin_profile': request.user.linkedin_profile,
+                'portfolio_website': request.user.portfolio_website,
+                'preferred_countries': request.user.preferred_countries,
+                'budget_range': request.user.budget_range,
+            }
+            
+            # Merge with provided student profile (provided data takes precedence)
+            student_profile = {**user_profile, **student_profile}
+        
         logger.info(f"Received AI request - Program: {program_id}, Coordinator: {coordinator_id}, Language: {language}")
         
         if not program_id or not coordinator_id:
@@ -141,6 +170,33 @@ def generate_subject_options(request):
         count = data.get('count', 3)
         language = data.get('language', 'en')
         
+        # Get user profile data if user is authenticated
+        student_profile = {}
+        if hasattr(request, 'user') and request.user.is_authenticated:
+            student_profile = {
+                'first_name': request.user.first_name,
+                'last_name': request.user.last_name,
+                'full_name': request.user.full_name,
+                'nationality': request.user.nationality,
+                'age': request.user.age,
+                'phone_number': request.user.phone_number,
+                'degree': request.user.degree,
+                'major': request.user.major,
+                'university': request.user.university,
+                'graduation_year': request.user.graduation_year,
+                'gpa': request.user.gpa,
+                'current_position': request.user.current_position,
+                'company': request.user.company,
+                'work_experience_years': request.user.work_experience_years,
+                'relevant_experience': request.user.relevant_experience,
+                'interests': request.user.interests,
+                'languages_spoken': request.user.languages_spoken,
+                'linkedin_profile': request.user.linkedin_profile,
+                'portfolio_website': request.user.portfolio_website,
+                'preferred_countries': request.user.preferred_countries,
+                'budget_range': request.user.budget_range,
+            }
+        
         if not program_id or not coordinator_id:
             return JsonResponse({
                 'error': 'program_id and coordinator_id are required'
@@ -162,7 +218,8 @@ def generate_subject_options(request):
             coordinator_name=coordinator.name,
             email_type=email_type,
             count=count,
-            language=language
+            language=language,
+            student_profile=student_profile
         )
         
         return JsonResponse({

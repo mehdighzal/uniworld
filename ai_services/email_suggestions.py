@@ -128,7 +128,8 @@ class EmailSuggestionService:
                                   coordinator_name: str,
                                   email_type: str = 'inquiry',
                                   count: int = 3,
-                                  language: str = 'en') -> List[str]:
+                                  language: str = 'en',
+                                  student_profile: Optional[Dict] = None) -> List[str]:
         """
         Generate multiple subject line options
         
@@ -329,6 +330,61 @@ Geef alleen de onderwerpen terug, één per regel.""",
             }
             
             prompt = language_prompts.get(language, language_prompts['en'])
+            
+            # Add student profile information if available
+            if student_profile:
+                profile_info = []
+                
+                # Personal information
+                if student_profile.get('first_name') and student_profile.get('last_name'):
+                    profile_info.append(f"Name: {student_profile.get('first_name')} {student_profile.get('last_name')}")
+                elif student_profile.get('full_name'):
+                    profile_info.append(f"Name: {student_profile.get('full_name')}")
+                
+                if student_profile.get('nationality'):
+                    profile_info.append(f"Nationality: {student_profile.get('nationality')}")
+                
+                if student_profile.get('age'):
+                    profile_info.append(f"Age: {student_profile.get('age')}")
+                
+                # Academic background
+                academic_parts = []
+                if student_profile.get('degree'):
+                    academic_parts.append(student_profile.get('degree'))
+                if student_profile.get('major'):
+                    academic_parts.append(f"in {student_profile.get('major')}")
+                if student_profile.get('university'):
+                    academic_parts.append(f"from {student_profile.get('university')}")
+                if student_profile.get('graduation_year'):
+                    academic_parts.append(f"graduating in {student_profile.get('graduation_year')}")
+                
+                if academic_parts:
+                    profile_info.append(f"Academic Background: {' '.join(academic_parts)}")
+                
+                if student_profile.get('gpa'):
+                    profile_info.append(f"GPA: {student_profile.get('gpa')}/4.0")
+                
+                # Professional information
+                if student_profile.get('current_position') and student_profile.get('company'):
+                    profile_info.append(f"Current Position: {student_profile.get('current_position')} at {student_profile.get('company')}")
+                elif student_profile.get('current_position'):
+                    profile_info.append(f"Current Position: {student_profile.get('current_position')}")
+                
+                if student_profile.get('work_experience_years'):
+                    profile_info.append(f"Work Experience: {student_profile.get('work_experience_years')} years")
+                
+                # Additional information
+                if student_profile.get('relevant_experience'):
+                    profile_info.append(f"Relevant Experience: {student_profile.get('relevant_experience')}")
+                
+                if student_profile.get('interests'):
+                    profile_info.append(f"Interests: {student_profile.get('interests')}")
+                
+                if student_profile.get('languages_spoken'):
+                    profile_info.append(f"Languages: {student_profile.get('languages_spoken')}")
+                
+                if profile_info:
+                    prompt += f"\n\nStudent Profile:\n" + "\n".join(profile_info)
             
             # Create a system message for Gemini
             full_prompt = f"You are an expert academic communication assistant. Generate multiple professional email subject line options. Respond in {language}.\n\n{prompt}"
@@ -695,9 +751,59 @@ Coördinator: {coordinator_name}""",
         prompt = language_prompts.get(language, language_prompts['en'])
 
         if student_profile:
-            prompt += f"\nStudent background: {student_profile.get('background', 'Not specified')}"
+            # Enhanced student profile integration
+            profile_info = []
+            
+            # Personal information
+            if student_profile.get('first_name') and student_profile.get('last_name'):
+                profile_info.append(f"Name: {student_profile.get('first_name')} {student_profile.get('last_name')}")
+            elif student_profile.get('full_name'):
+                profile_info.append(f"Name: {student_profile.get('full_name')}")
+            
+            if student_profile.get('nationality'):
+                profile_info.append(f"Nationality: {student_profile.get('nationality')}")
+            
+            if student_profile.get('age'):
+                profile_info.append(f"Age: {student_profile.get('age')}")
+            
+            # Academic background
+            academic_parts = []
+            if student_profile.get('degree'):
+                academic_parts.append(student_profile.get('degree'))
+            if student_profile.get('major'):
+                academic_parts.append(f"in {student_profile.get('major')}")
+            if student_profile.get('university'):
+                academic_parts.append(f"from {student_profile.get('university')}")
+            if student_profile.get('graduation_year'):
+                academic_parts.append(f"graduating in {student_profile.get('graduation_year')}")
+            
+            if academic_parts:
+                profile_info.append(f"Academic Background: {' '.join(academic_parts)}")
+            
+            if student_profile.get('gpa'):
+                profile_info.append(f"GPA: {student_profile.get('gpa')}/4.0")
+            
+            # Professional information
+            if student_profile.get('current_position') and student_profile.get('company'):
+                profile_info.append(f"Current Position: {student_profile.get('current_position')} at {student_profile.get('company')}")
+            elif student_profile.get('current_position'):
+                profile_info.append(f"Current Position: {student_profile.get('current_position')}")
+            
+            if student_profile.get('work_experience_years'):
+                profile_info.append(f"Work Experience: {student_profile.get('work_experience_years')} years")
+            
+            # Additional information
+            if student_profile.get('relevant_experience'):
+                profile_info.append(f"Relevant Experience: {student_profile.get('relevant_experience')}")
+            
             if student_profile.get('interests'):
-                prompt += f"\nStudent interests: {student_profile.get('interests')}"
+                profile_info.append(f"Interests: {student_profile.get('interests')}")
+            
+            if student_profile.get('languages_spoken'):
+                profile_info.append(f"Languages: {student_profile.get('languages_spoken')}")
+            
+            if profile_info:
+                prompt += f"\n\nStudent Profile:\n" + "\n".join(profile_info)
 
         # Language-specific requirements
         requirements = {
@@ -801,11 +907,68 @@ Coördinator: {coordinator_name} ({coordinator_role})""",
         prompt = language_prompts.get(language, language_prompts['en'])
 
         if student_profile:
-            prompt += f"\nStudent background: {student_profile.get('background', 'Not specified')}"
+            # Enhanced student profile integration
+            profile_info = []
+            
+            # Personal information
+            if student_profile.get('first_name') and student_profile.get('last_name'):
+                profile_info.append(f"Name: {student_profile.get('first_name')} {student_profile.get('last_name')}")
+            elif student_profile.get('full_name'):
+                profile_info.append(f"Name: {student_profile.get('full_name')}")
+            
+            if student_profile.get('nationality'):
+                profile_info.append(f"Nationality: {student_profile.get('nationality')}")
+            
+            if student_profile.get('age'):
+                profile_info.append(f"Age: {student_profile.get('age')}")
+            
+            if student_profile.get('phone_number'):
+                profile_info.append(f"Phone: {student_profile.get('phone_number')}")
+            
+            # Academic background
+            academic_parts = []
+            if student_profile.get('degree'):
+                academic_parts.append(student_profile.get('degree'))
+            if student_profile.get('major'):
+                academic_parts.append(f"in {student_profile.get('major')}")
+            if student_profile.get('university'):
+                academic_parts.append(f"from {student_profile.get('university')}")
+            if student_profile.get('graduation_year'):
+                academic_parts.append(f"graduating in {student_profile.get('graduation_year')}")
+            
+            if academic_parts:
+                profile_info.append(f"Academic Background: {' '.join(academic_parts)}")
+            
+            if student_profile.get('gpa'):
+                profile_info.append(f"GPA: {student_profile.get('gpa')}/4.0")
+            
+            # Professional information
+            if student_profile.get('current_position') and student_profile.get('company'):
+                profile_info.append(f"Current Position: {student_profile.get('current_position')} at {student_profile.get('company')}")
+            elif student_profile.get('current_position'):
+                profile_info.append(f"Current Position: {student_profile.get('current_position')}")
+            
+            if student_profile.get('work_experience_years'):
+                profile_info.append(f"Work Experience: {student_profile.get('work_experience_years')} years")
+            
+            # Additional information
+            if student_profile.get('relevant_experience'):
+                profile_info.append(f"Relevant Experience: {student_profile.get('relevant_experience')}")
+            
             if student_profile.get('interests'):
-                prompt += f"\nStudent interests: {student_profile.get('interests')}"
-            if student_profile.get('experience'):
-                prompt += f"\nStudent experience: {student_profile.get('experience')}"
+                profile_info.append(f"Interests: {student_profile.get('interests')}")
+            
+            if student_profile.get('languages_spoken'):
+                profile_info.append(f"Languages: {student_profile.get('languages_spoken')}")
+            
+            if student_profile.get('linkedin_profile'):
+                profile_info.append(f"LinkedIn: {student_profile.get('linkedin_profile')}")
+            
+            if student_profile.get('portfolio_website'):
+                profile_info.append(f"Portfolio: {student_profile.get('portfolio_website')}")
+            
+            if profile_info:
+                prompt += f"\n\nStudent Profile:\n" + "\n".join(profile_info)
 
         if custom_requirements:
             prompt += f"\nSpecific questions/requirements: {', '.join(custom_requirements)}"
@@ -1157,7 +1320,8 @@ def get_multiple_subject_options(program_name: str,
                                  coordinator_name: str,
                                  email_type: str = 'inquiry',
                                  count: int = 3,
-                                 language: str = 'en') -> List[str]:
+                                 language: str = 'en',
+                                 student_profile: Optional[Dict] = None) -> List[str]:
     """
     Get multiple subject line options
     
@@ -1166,5 +1330,5 @@ def get_multiple_subject_options(program_name: str,
     """
     service = EmailSuggestionService()
     return service.generate_multiple_subjects(
-        program_name, university_name, coordinator_name, email_type, count, language
+        program_name, university_name, coordinator_name, email_type, count, language, student_profile
     )

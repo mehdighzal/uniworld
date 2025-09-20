@@ -2,11 +2,15 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+User = get_user_model()
 from django.contrib.auth.hashers import make_password
+from django.conf import settings
+from django.utils import timezone
 from universities.models import University, Program, Coordinator
 import json
 import os
+import time
 
 
 @require_http_methods(["GET"])
@@ -136,6 +140,68 @@ def login_view(request):
         return JsonResponse({'error': str(e)}, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["GET", "PUT"])
+def profile_view(request):
+    """Simple profile endpoint for authenticated users"""
+    if not request.user.is_authenticated:
+        return JsonResponse({'error': 'Authentication required'}, status=401)
+    
+    if request.method == 'GET':
+        # Return user profile data
+        user = request.user
+        return JsonResponse({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'date_joined': user.date_joined.isoformat(),
+            'is_staff': user.is_staff,
+            'is_active': user.is_active,
+            'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+        })
+    
+    elif request.method == 'PUT':
+        # Update user profile
+        try:
+            data = json.loads(request.body)
+            user = request.user
+            
+            # Update allowed fields
+            if 'first_name' in data:
+                user.first_name = data['first_name']
+            if 'last_name' in data:
+                user.last_name = data['last_name']
+            if 'email' in data:
+                # Check if email is already taken by another user
+                if User.objects.filter(email=data['email']).exclude(id=user.id).exists():
+                    return JsonResponse({'error': 'Email already exists'}, status=400)
+                user.email = data['email']
+            
+            user.save()
+            
+            return JsonResponse({
+                'message': 'Profile updated successfully',
+                'user': {
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'first_name': user.first_name,
+                    'last_name': user.last_name,
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                }
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Invalid JSON'}, status=400)
+        except Exception as e:
+            import traceback
+            print(f"Profile update error: {str(e)}")
+            print(f"Traceback: {traceback.format_exc()}")
+            return JsonResponse({'error': 'Internal server error', 'details': str(e)}, status=500)
+
+
 @require_http_methods(["GET"])
 def welcome_view(request):
     """Welcome page for the UniWorld API"""
@@ -161,6 +227,7 @@ def welcome_view(request):
     })
 
 
+@csrf_exempt
 @require_http_methods(["POST"])
 def change_password_view(request):
     """API endpoint to change user password"""
@@ -560,3 +627,94 @@ def send_bulk_email_api_view(request):
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def test_user_profile_view(request):
+    """Test endpoint for user profile functionality"""
+    try:
+        # Get the custom User model
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # Try to get the first user or create a test user
+        try:
+            user = User.objects.first()
+            if not user:
+                # Create a test user
+                user = User.objects.create_user(
+                    username='testuser',
+                    email='test@example.com',
+                    password='testpass123',
+                    first_name='John',
+                    last_name='Doe',
+                    nationality='American',
+                    age=25,
+                    phone_number='+1234567890',
+                    degree="Bachelor's",
+                    major='Computer Science',
+                    university='Test University',
+                    graduation_year=2020,
+                    gpa=3.8,
+                    current_position='Software Developer',
+                    company='Tech Corp',
+                    work_experience_years=3,
+                    relevant_experience='Python, Django, React development',
+                    interests='Machine Learning, Web Development',
+                    languages_spoken='English, Spanish',
+                    linkedin_profile='https://linkedin.com/in/johndoe',
+                    portfolio_website='https://johndoe.dev',
+                    preferred_countries='USA, Canada, UK',
+                    budget_range='$25,000 - $50,000'
+                )
+            
+            # Test profile properties
+            profile_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'full_name': user.full_name,
+                'nationality': user.nationality,
+                'age': user.age,
+                'phone_number': user.phone_number,
+                'degree': user.degree,
+                'major': user.major,
+                'university': user.university,
+                'graduation_year': user.graduation_year,
+                'gpa': float(user.gpa) if user.gpa else None,
+                'current_position': user.current_position,
+                'company': user.company,
+                'work_experience_years': user.work_experience_years,
+                'relevant_experience': user.relevant_experience,
+                'interests': user.interests,
+                'languages_spoken': user.languages_spoken,
+                'linkedin_profile': user.linkedin_profile,
+                'portfolio_website': user.portfolio_website,
+                'preferred_countries': user.preferred_countries,
+                'budget_range': user.budget_range,
+                'academic_background': user.academic_background,
+                'profile_completeness': user.profile_completeness,
+                'has_complete_profile': user.profile_completeness >= 70,
+                'can_send_emails': user.can_send_emails,
+                'has_active_subscription': user.has_active_subscription
+            }
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'User profile functionality working correctly',
+                'user_profile': profile_data
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': f'Error testing user profile: {str(e)}'
+            }, status=500)
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': f'General error: {str(e)}'
+        }, status=500)

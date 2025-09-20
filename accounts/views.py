@@ -60,21 +60,15 @@ def login_view(request):
 class UserProfileView(generics.RetrieveUpdateAPIView):
     """View for user profile management"""
     
-    serializer_class = UserProfileSerializer
     permission_classes = [permissions.IsAuthenticated]
     
     def get_object(self):
         return self.request.user
-
-
-class UserUpdateView(generics.UpdateAPIView):
-    """View for updating user profile"""
     
-    serializer_class = UserUpdateSerializer
-    permission_classes = [permissions.IsAuthenticated]
-    
-    def get_object(self):
-        return self.request.user
+    def get_serializer_class(self):
+        if self.request.method == 'GET':
+            return UserProfileSerializer
+        return UserUpdateSerializer
 
 
 @api_view(['POST'])
@@ -90,6 +84,43 @@ def change_password_view(request):
     user.save()
     
     return Response({'message': 'Password changed successfully'}, status=status.HTTP_200_OK)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def profile_stats_view(request):
+    """View for getting user profile statistics"""
+    
+    user = request.user
+    
+    stats = {
+        'profile_completeness': user.profile_completeness,
+        'academic_background': user.academic_background,
+        'full_name': user.full_name,
+        'has_complete_profile': user.profile_completeness >= 70,
+        'missing_fields': []
+    }
+    
+    # Check which important fields are missing
+    important_fields = [
+        ('first_name', 'First Name'),
+        ('last_name', 'Last Name'),
+        ('nationality', 'Nationality'),
+        ('age', 'Age'),
+        ('phone_number', 'Phone Number'),
+        ('degree', 'Degree'),
+        ('major', 'Major'),
+        ('university', 'University'),
+        ('graduation_year', 'Graduation Year'),
+        ('relevant_experience', 'Relevant Experience'),
+        ('interests', 'Interests')
+    ]
+    
+    for field_name, field_display in important_fields:
+        if not getattr(user, field_name, None):
+            stats['missing_fields'].append(field_display)
+    
+    return Response(stats, status=status.HTTP_200_OK)
 
 
 @api_view(['GET'])

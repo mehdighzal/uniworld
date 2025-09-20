@@ -42,6 +42,12 @@ document.addEventListener('DOMContentLoaded', function() {
     loadUserData();
     setupEventListeners();
     loadInitialData();
+    
+    // Add event listener for profile form submission
+    const profileForm = document.getElementById('userProfileForm');
+    if (profileForm) {
+        profileForm.addEventListener('submit', saveUserProfile);
+    }
 });
 
 // Load user data from localStorage
@@ -235,13 +241,15 @@ async function apiRequest(endpoint, options = {}) {
         headers: {
             'Content-Type': 'application/json',
         },
+        credentials: 'include', // Include cookies for session authentication
         ...options
     };
     
-    const token = localStorage.getItem('token');
-    if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-    }
+    // Remove JWT token authentication since we're using session auth
+    // const token = localStorage.getItem('token');
+    // if (token) {
+    //     config.headers.Authorization = `Bearer ${token}`;
+    // }
     
     try {
         const response = await fetch(url, config);
@@ -487,6 +495,7 @@ async function handleLogin(e) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify(loginData)
         });
         
@@ -559,6 +568,7 @@ async function handleRegister(e) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify(registerData)
         });
         
@@ -1658,6 +1668,7 @@ async function handlePasswordChange(e) {
             headers: {
                 'Content-Type': 'application/json',
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 current_password: currentPassword,
                 new_password: newPassword,
@@ -2387,8 +2398,8 @@ async function handleBulkEmailSubmit(e) {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 coordinators: allCoordinators,
                 subject: subject,
@@ -2771,6 +2782,131 @@ function showMorePrograms() {
     }
 }
 
+// User Profile Functions
+async function showUserProfile() {
+    closeAllModals();
+    document.getElementById('userProfileModal').classList.remove('hidden');
+    
+    try {
+        // Load user profile data
+        await loadUserProfile();
+    } catch (error) {
+        console.error('Error loading user profile:', error);
+        showNotification('Failed to load profile data', 'error');
+    }
+}
+
+async function loadUserProfile() {
+    try {
+        const response = await apiRequest('/auth/profile/');
+        const userData = response;
+        
+        // Populate form fields
+        document.getElementById('profileFirstName').value = userData.first_name || '';
+        document.getElementById('profileLastName').value = userData.last_name || '';
+        document.getElementById('profileEmail').value = userData.email || '';
+        document.getElementById('profilePhone').value = userData.phone_number || '';
+        document.getElementById('profileNationality').value = userData.nationality || '';
+        document.getElementById('profileAge').value = userData.age || '';
+        
+        // Academic information
+        document.getElementById('profileDegree').value = userData.degree || '';
+        document.getElementById('profileMajor').value = userData.major || '';
+        document.getElementById('profileUniversity').value = userData.university || '';
+        document.getElementById('profileGraduationYear').value = userData.graduation_year || '';
+        document.getElementById('profileGPA').value = userData.gpa || '';
+        
+        // Professional information
+        document.getElementById('profilePosition').value = userData.current_position || '';
+        document.getElementById('profileCompany').value = userData.company || '';
+        document.getElementById('profileExperience').value = userData.work_experience_years || '';
+        
+        // Additional information
+        document.getElementById('profileExperience').value = userData.relevant_experience || '';
+        document.getElementById('profileInterests').value = userData.interests || '';
+        document.getElementById('profileLanguages').value = userData.languages_spoken || '';
+        document.getElementById('profileLinkedIn').value = userData.linkedin_profile || '';
+        document.getElementById('profilePortfolio').value = userData.portfolio_website || '';
+        
+        // Preferences
+        document.getElementById('profileCountries').value = userData.preferred_countries || '';
+        document.getElementById('profileBudget').value = userData.budget_range || '';
+        
+        // Update profile completeness
+        updateProfileCompleteness(userData.profile_completeness || 0);
+        
+    } catch (error) {
+        console.error('Error loading user profile:', error);
+        throw error;
+    }
+}
+
+function updateProfileCompleteness(completeness) {
+    const completenessElement = document.getElementById('profileCompleteness');
+    const progressBar = document.getElementById('profileProgressBar');
+    
+    if (completenessElement && progressBar) {
+        completenessElement.textContent = `${completeness}%`;
+        progressBar.style.width = `${completeness}%`;
+        
+        // Change color based on completeness
+        if (completeness >= 70) {
+            progressBar.className = 'bg-green-600 h-2 rounded-full transition-all duration-300';
+        } else if (completeness >= 40) {
+            progressBar.className = 'bg-yellow-600 h-2 rounded-full transition-all duration-300';
+        } else {
+            progressBar.className = 'bg-red-600 h-2 rounded-full transition-all duration-300';
+        }
+    }
+}
+
+async function saveUserProfile(event) {
+    event.preventDefault();
+    
+    const formData = new FormData(event.target);
+    const profileData = {};
+    
+    // Convert FormData to object
+    for (let [key, value] of formData.entries()) {
+        if (value.trim() !== '') {
+            profileData[key] = value.trim();
+        }
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/profile/`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include', // Include cookies for session authentication
+            body: JSON.stringify(profileData)
+        });
+        
+        if (response.ok) {
+            const updatedData = await response.json();
+            showNotification('Profile updated successfully!', 'success');
+            
+            // Update profile completeness
+            updateProfileCompleteness(updatedData.profile_completeness || 0);
+            
+            // Update current user data
+            if (currentUser) {
+                Object.assign(currentUser, updatedData);
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            }
+            
+        } else {
+            const errorData = await response.json();
+            showNotification(errorData.error || 'Failed to update profile', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        showNotification('Failed to update profile', 'error');
+    }
+}
+
 // AI Email Assistant Functions
 let currentProgramForAI = null;
 let currentCoordinatorForAI = null;
@@ -2802,8 +2938,8 @@ async function generateAISuggestions(programId = null, coordinatorId = null, ema
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 program_id: programId,
                 coordinator_id: coordinatorId,
@@ -2872,8 +3008,8 @@ async function generateBulkAISubject() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 program_id: firstProgram.id,
                 coordinator_id: coordinator.id,
@@ -2936,8 +3072,8 @@ async function generateBulkAIContent() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 program_id: firstProgram.id,
                 coordinator_id: coordinator.id,
@@ -2991,8 +3127,8 @@ async function generateAISubjectOptions(programId = null, coordinatorId = null, 
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 program_id: programId,
                 coordinator_id: coordinatorId,
@@ -3044,8 +3180,8 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
             },
+            credentials: 'include', // Include cookies for session authentication
             body: JSON.stringify({
                 program_id: programId,
                 coordinator_id: coordinatorId,

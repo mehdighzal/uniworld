@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils import timezone
-from django.contrib.auth.models import User
+from django.conf import settings
 
 
 class Subscription(models.Model):
@@ -19,7 +19,7 @@ class Subscription(models.Model):
         ('pro', 'Pro'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='subscriptions')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='subscriptions')
     plan_type = models.CharField(max_length=20, choices=PLAN_CHOICES, default='free')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     
@@ -79,7 +79,7 @@ class Payment(models.Model):
         ('paypal', 'PayPal'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payments')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='payments')
     subscription = models.ForeignKey(Subscription, on_delete=models.CASCADE, related_name='payments')
     
     # Payment details
@@ -134,7 +134,7 @@ class EmailLog(models.Model):
         ('yahoo', 'Yahoo'),
     ]
     
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_logs')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='email_logs')
     coordinator = models.ForeignKey('universities.Coordinator', on_delete=models.CASCADE, related_name='email_logs')
     
     # Email details

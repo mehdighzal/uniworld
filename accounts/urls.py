@@ -10,7 +10,7 @@ urlpatterns = [
     
     # User profile endpoints
     path('profile/', views.UserProfileView.as_view(), name='user-profile'),
-    path('profile/update/', views.UserUpdateView.as_view(), name='user-update'),
+    path('profile/stats/', views.profile_stats_view, name='profile-stats'),
     path('change-password/', views.change_password_view, name='change-password'),
     path('subscription-status/', views.user_subscription_status_view, name='subscription-status'),
 ]

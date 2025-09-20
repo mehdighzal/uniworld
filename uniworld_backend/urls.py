@@ -38,9 +38,13 @@ urlpatterns = [
     # API welcome page
     path('api-welcome/', views.welcome_view, name='api-welcome'),
     
+    # Test endpoint for user profile functionality
+    path('api/test-user-profile/', views.test_user_profile_view, name='test-user-profile'),
+    
     # Simple authentication endpoints
     path('api/auth/register/', views.register_view, name='register'),
     path('api/auth/login/', views.login_view, name='login'),
+    path('api/auth/profile/', views.profile_view, name='profile'),
     path('api/auth/change-password/', views.change_password_view, name='change-password'),
     
     # API Endpoints for Frontend
@@ -68,7 +72,7 @@ urlpatterns = [
     # path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     # path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # API Endpoints (temporarily disabled)
+    # API Endpoints (temporarily disabled due to DRF dependency issues)
     # path('api/auth/', include('accounts.urls')),
     # path('api/', include('universities.urls')),
     # path('api/payments/', include('payments.urls')),
