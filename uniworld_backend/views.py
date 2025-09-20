@@ -159,7 +159,27 @@ def profile_view(request):
             'date_joined': user.date_joined.isoformat(),
             'is_staff': user.is_staff,
             'is_active': user.is_active,
-            'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+            'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+            # Extended profile fields
+            'nationality': user.nationality,
+            'age': user.age,
+            'phone_number': user.phone_number,
+            'degree': user.degree,
+            'major': user.major,
+            'university': user.university,
+            'graduation_year': user.graduation_year,
+            'gpa': float(user.gpa) if user.gpa else None,
+            'current_position': user.current_position,
+            'company': user.company,
+            'work_experience_years': user.work_experience_years,
+            'relevant_experience': user.relevant_experience,
+            'interests': user.interests,
+            'languages_spoken': user.languages_spoken,
+            'linkedin_profile': user.linkedin_profile,
+            'portfolio_website': user.portfolio_website,
+            'preferred_countries': user.preferred_countries,
+            'budget_range': user.budget_range,
+            'profile_completeness': user.profile_completeness
         })
     
     elif request.method == 'PUT':
@@ -179,6 +199,56 @@ def profile_view(request):
                     return JsonResponse({'error': 'Email already exists'}, status=400)
                 user.email = data['email']
             
+            # Update extended profile fields
+            if 'nationality' in data:
+                user.nationality = data['nationality']
+            if 'age' in data:
+                try:
+                    user.age = int(data['age']) if data['age'] else None
+                except ValueError:
+                    pass  # Skip invalid age values
+            if 'phone_number' in data:
+                user.phone_number = data['phone_number']
+            if 'degree' in data:
+                user.degree = data['degree']
+            if 'major' in data:
+                user.major = data['major']
+            if 'university' in data:
+                user.university = data['university']
+            if 'graduation_year' in data:
+                try:
+                    user.graduation_year = int(data['graduation_year']) if data['graduation_year'] else None
+                except ValueError:
+                    pass  # Skip invalid graduation year values
+            if 'gpa' in data:
+                try:
+                    user.gpa = float(data['gpa']) if data['gpa'] else None
+                except ValueError:
+                    pass  # Skip invalid GPA values
+            if 'current_position' in data:
+                user.current_position = data['current_position']
+            if 'company' in data:
+                user.company = data['company']
+            if 'work_experience_years' in data:
+                try:
+                    user.work_experience_years = int(data['work_experience_years']) if data['work_experience_years'] else None
+                except ValueError:
+                    pass  # Skip invalid work experience values
+            if 'relevant_experience' in data:
+                user.relevant_experience = data['relevant_experience']
+            if 'interests' in data:
+                user.interests = data['interests']
+            if 'languages_spoken' in data:
+                user.languages_spoken = data['languages_spoken']
+            if 'linkedin_profile' in data:
+                user.linkedin_profile = data['linkedin_profile']
+            if 'portfolio_website' in data:
+                user.portfolio_website = data['portfolio_website']
+            if 'preferred_countries' in data:
+                user.preferred_countries = data['preferred_countries']
+            if 'budget_range' in data:
+                user.budget_range = data['budget_range']
+            
             user.save()
             
             return JsonResponse({
@@ -189,7 +259,27 @@ def profile_view(request):
                     'email': user.email,
                     'first_name': user.first_name,
                     'last_name': user.last_name,
-                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username
+                    'full_name': f"{user.first_name} {user.last_name}".strip() or user.username,
+                    # Extended profile fields
+                    'nationality': user.nationality,
+                    'age': user.age,
+                    'phone_number': user.phone_number,
+                    'degree': user.degree,
+                    'major': user.major,
+                    'university': user.university,
+                    'graduation_year': user.graduation_year,
+                    'gpa': float(user.gpa) if user.gpa else None,
+                    'current_position': user.current_position,
+                    'company': user.company,
+                    'work_experience_years': user.work_experience_years,
+                    'relevant_experience': user.relevant_experience,
+                    'interests': user.interests,
+                    'languages_spoken': user.languages_spoken,
+                    'linkedin_profile': user.linkedin_profile,
+                    'portfolio_website': user.portfolio_website,
+                    'preferred_countries': user.preferred_countries,
+                    'budget_range': user.budget_range,
+                    'profile_completeness': user.profile_completeness
                 }
             })
             

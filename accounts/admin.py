@@ -7,14 +7,30 @@ from .models import User
 class UserAdmin(BaseUserAdmin):
     """Admin configuration for custom User model"""
     
-    list_display = ('email', 'username', 'first_name', 'last_name', 'is_premium', 'is_active', 'date_joined')
-    list_filter = ('is_premium', 'is_active', 'is_staff', 'is_superuser', 'date_joined')
-    search_fields = ('email', 'username', 'first_name', 'last_name')
+    list_display = ('email', 'username', 'first_name', 'last_name', 'nationality', 'degree', 'university', 'profile_completeness_display', 'is_premium', 'is_active', 'date_joined')
+    list_filter = ('is_premium', 'is_active', 'is_staff', 'is_superuser', 'nationality', 'degree', 'date_joined')
+    search_fields = ('email', 'username', 'first_name', 'last_name', 'nationality', 'university', 'major')
     ordering = ('-date_joined',)
     
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
-        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email', 'nationality', 'age', 'phone_number')}),
+        ('Academic Information', {
+            'fields': ('degree', 'major', 'university', 'graduation_year', 'gpa'),
+            'classes': ('collapse',)
+        }),
+        ('Professional Information', {
+            'fields': ('current_position', 'company', 'work_experience_years', 'relevant_experience'),
+            'classes': ('collapse',)
+        }),
+        ('Additional Information', {
+            'fields': ('interests', 'languages_spoken', 'linkedin_profile', 'portfolio_website'),
+            'classes': ('collapse',)
+        }),
+        ('Preferences', {
+            'fields': ('preferred_countries', 'budget_range'),
+            'classes': ('collapse',)
+        }),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -37,3 +53,17 @@ class UserAdmin(BaseUserAdmin):
     )
     
     readonly_fields = ('date_joined', 'last_login')
+    
+    def get_queryset(self, request):
+        """Optimize queryset for admin list view"""
+        return super().get_queryset(request).select_related()
+    
+    def profile_completeness_display(self, obj):
+        """Display profile completeness percentage"""
+        return f"{obj.profile_completeness}%"
+    profile_completeness_display.short_description = 'Profile Complete'
+    
+    def academic_background_display(self, obj):
+        """Display academic background"""
+        return obj.academic_background or "Not specified"
+    academic_background_display.short_description = 'Academic Background'
