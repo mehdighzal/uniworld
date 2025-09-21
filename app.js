@@ -176,6 +176,20 @@ function setupEventListeners() {
             console.error('Bulk email form not found');
         }
         
+        // Email type change listener for automatic AI generation
+        const bulkEmailType = document.getElementById('bulkEmailType');
+        if (bulkEmailType) {
+            bulkEmailType.addEventListener('change', function() {
+                // Add a small delay to ensure the value is updated
+                setTimeout(() => {
+                    generateEmailTypeBasedAI();
+                }, 100);
+            });
+            console.log('Email type change listener attached');
+        } else {
+            console.error('Bulk email type dropdown not found');
+        }
+        
     }, 100);
 }
 
@@ -3097,6 +3111,83 @@ async function generateBulkAIContent() {
     } catch (error) {
         console.error('Error generating bulk AI content:', error);
         showNotification('Failed to generate AI content', 'error');
+    }
+}
+
+// Generate both subject and content when email type changes
+async function generateEmailTypeBasedAI() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        return; // Don't show error for automatic generation
+    }
+    
+    if (selectedPrograms.length === 0) {
+        return; // Don't generate if no programs selected
+    }
+    
+    try {
+        // Use the first selected program for AI generation
+        const firstProgram = selectedPrograms[0];
+        
+        // Get coordinators for the first program
+        const data = await apiRequest(`/coordinators/?program_id=${firstProgram.program_id}`);
+        const coordinators = data.results || data;
+        
+        if (coordinators.length === 0) {
+            return; // Don't show error for automatic generation
+        }
+        
+        const coordinator = coordinators[0];
+        const language = document.getElementById('bulkEmailLanguage')?.value || 'en';
+        const emailType = document.getElementById('bulkEmailType')?.value || 'inquiry';
+        
+        // Show loading state
+        const subjectField = document.getElementById('bulkEmailSubject');
+        const contentField = document.getElementById('bulkEmailBody');
+        
+        if (subjectField) subjectField.value = 'Generating AI subject...';
+        if (contentField) contentField.value = 'Generating AI content...';
+        
+        // Generate AI suggestions (both subject and content)
+        const response = await fetch(`${API_BASE_URL}/ai/generate-suggestions/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                program_id: firstProgram.id,
+                coordinator_id: coordinator.id,
+                email_type: emailType,
+                language: language
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.suggestions) {
+                // Update subject
+                if (data.suggestions.subject && subjectField) {
+                    subjectField.value = data.suggestions.subject;
+                }
+                
+                // Update content
+                if (data.suggestions.content && contentField) {
+                    contentField.value = data.suggestions.content;
+                }
+                
+                // Show success notification
+                showNotification(`AI generated ${emailType} email successfully!`, 'success');
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error generating email type based AI:', error);
+        // Reset fields on error
+        const subjectField = document.getElementById('bulkEmailSubject');
+        const contentField = document.getElementById('bulkEmailBody');
+        if (subjectField) subjectField.value = '';
+        if (contentField) contentField.value = '';
     }
 }
 

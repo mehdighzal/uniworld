@@ -825,80 +825,211 @@ Coördinator: {coordinator_name}""",
 
         return prompt
     
+    def _get_email_type_context(self, email_type, language='en'):
+        """Get specific context for different email types"""
+        contexts = {
+            'en': {
+                'inquiry': 'This is a general inquiry about the program. Ask for general information, program details, and any questions about the program.',
+                'admission': 'This is an admission inquiry. Focus on admission requirements, application process, deadlines, and selection criteria.',
+                'scholarship': 'This is a scholarship inquiry. Focus on funding opportunities, scholarship availability, application requirements, and financial aid options.',
+                'application': 'This is about application status. Ask about the current status of an application, next steps, or required documents.',
+                'visa': 'This is about visa information. Ask about visa requirements, documentation needed, and support available for international students.',
+                'research': 'This is about research opportunities. Focus on research projects, supervision opportunities, and research requirements.',
+                'career': 'This is about career opportunities. Focus on career outcomes, employment statistics, and career support services.'
+            },
+            'it': {
+                'inquiry': 'Questa è una richiesta generale sul programma. Chiedi informazioni generali, dettagli del programma e qualsiasi domanda sul programma.',
+                'admission': 'Questa è una richiesta di ammissione. Concentrati sui requisiti di ammissione, processo di candidatura, scadenze e criteri di selezione.',
+                'scholarship': 'Questa è una richiesta di borsa di studio. Concentrati sulle opportunità di finanziamento, disponibilità di borse di studio, requisiti di candidatura e opzioni di aiuto finanziario.',
+                'application': 'Questo riguarda lo stato della candidatura. Chiedi lo stato attuale di una candidatura, i prossimi passi o i documenti richiesti.',
+                'visa': 'Questo riguarda le informazioni sui visti. Chiedi i requisiti per il visto, la documentazione necessaria e il supporto disponibile per gli studenti internazionali.',
+                'research': 'Questo riguarda le opportunità di ricerca. Concentrati sui progetti di ricerca, opportunità di supervisione e requisiti di ricerca.',
+                'career': 'Questo riguarda le opportunità di carriera. Concentrati sui risultati di carriera, statistiche occupazionali e servizi di supporto alla carriera.'
+            },
+            'fr': {
+                'inquiry': 'Il s\'agit d\'une demande générale sur le programme. Demandez des informations générales, des détails du programme et toute question sur le programme.',
+                'admission': 'Il s\'agit d\'une demande d\'admission. Concentrez-vous sur les exigences d\'admission, le processus de candidature, les délais et les critères de sélection.',
+                'scholarship': 'Il s\'agit d\'une demande de bourse. Concentrez-vous sur les opportunités de financement, la disponibilité des bourses, les exigences de candidature et les options d\'aide financière.',
+                'application': 'Il s\'agit du statut de candidature. Demandez le statut actuel d\'une candidature, les prochaines étapes ou les documents requis.',
+                'visa': 'Il s\'agit d\'informations sur les visas. Demandez les exigences de visa, la documentation nécessaire et le soutien disponible pour les étudiants internationaux.',
+                'research': 'Il s\'agit d\'opportunités de recherche. Concentrez-vous sur les projets de recherche, les opportunités de supervision et les exigences de recherche.',
+                'career': 'Il s\'agit d\'opportunités de carrière. Concentrez-vous sur les résultats de carrière, les statistiques d\'emploi et les services de soutien à la carrière.'
+            },
+            'es': {
+                'inquiry': 'Esta es una consulta general sobre el programa. Pregunta por información general, detalles del programa y cualquier pregunta sobre el programa.',
+                'admission': 'Esta es una consulta de admisión. Enfócate en los requisitos de admisión, proceso de aplicación, fechas límite y criterios de selección.',
+                'scholarship': 'Esta es una consulta de beca. Enfócate en oportunidades de financiamiento, disponibilidad de becas, requisitos de aplicación y opciones de ayuda financiera.',
+                'application': 'Esto es sobre el estado de la aplicación. Pregunta sobre el estado actual de una aplicación, próximos pasos o documentos requeridos.',
+                'visa': 'Esto es sobre información de visa. Pregunta sobre requisitos de visa, documentación necesaria y apoyo disponible para estudiantes internacionales.',
+                'research': 'Esto es sobre oportunidades de investigación. Enfócate en proyectos de investigación, oportunidades de supervisión y requisitos de investigación.',
+                'career': 'Esto es sobre oportunidades de carrera. Enfócate en resultados de carrera, estadísticas de empleo y servicios de apoyo profesional.'
+            },
+            'de': {
+                'inquiry': 'Dies ist eine allgemeine Anfrage zum Programm. Fragen Sie nach allgemeinen Informationen, Programmdetails und Fragen zum Programm.',
+                'admission': 'Dies ist eine Zulassungsanfrage. Konzentrieren Sie sich auf Zulassungsvoraussetzungen, Bewerbungsprozess, Fristen und Auswahlkriterien.',
+                'scholarship': 'Dies ist eine Stipendienanfrage. Konzentrieren Sie sich auf Finanzierungsmöglichkeiten, Stipendienverfügbarkeit, Bewerbungsvoraussetzungen und Finanzhilfeoptionen.',
+                'application': 'Dies betrifft den Bewerbungsstatus. Fragen Sie nach dem aktuellen Status einer Bewerbung, nächsten Schritten oder erforderlichen Dokumenten.',
+                'visa': 'Dies betrifft Visainformationen. Fragen Sie nach Visavoraussetzungen, erforderlicher Dokumentation und verfügbarer Unterstützung für internationale Studierende.',
+                'research': 'Dies betrifft Forschungsmöglichkeiten. Konzentrieren Sie sich auf Forschungsprojekte, Betreuungsmöglichkeiten und Forschungsanforderungen.',
+                'career': 'Dies betrifft Karrieremöglichkeiten. Konzentrieren Sie sich auf Karriereergebnisse, Beschäftigungsstatistiken und Karriereunterstützungsdienste.'
+            },
+            'pt': {
+                'inquiry': 'Esta é uma consulta geral sobre o programa. Pergunte por informações gerais, detalhes do programa e qualquer pergunta sobre o programa.',
+                'admission': 'Esta é uma consulta de admissão. Foque nos requisitos de admissão, processo de candidatura, prazos e critérios de seleção.',
+                'scholarship': 'Esta é uma consulta de bolsa de estudos. Foque em oportunidades de financiamento, disponibilidade de bolsas, requisitos de candidatura e opções de ajuda financeira.',
+                'application': 'Isso é sobre o status da candidatura. Pergunte sobre o status atual de uma candidatura, próximos passos ou documentos necessários.',
+                'visa': 'Isso é sobre informações de visto. Pergunte sobre requisitos de visto, documentação necessária e apoio disponível para estudantes internacionais.',
+                'research': 'Isso é sobre oportunidades de pesquisa. Foque em projetos de pesquisa, oportunidades de supervisão e requisitos de pesquisa.',
+                'career': 'Isso é sobre oportunidades de carreira. Foque em resultados de carreira, estatísticas de emprego e serviços de apoio à carreira.'
+            },
+            'nl': {
+                'inquiry': 'Dit is een algemene vraag over het programma. Vraag om algemene informatie, programmadetails en vragen over het programma.',
+                'admission': 'Dit is een toelatingsvraag. Focus op toelatingseisen, aanmeldingsproces, deadlines en selectiecriteria.',
+                'scholarship': 'Dit is een beursvraag. Focus op financieringsmogelijkheden, beschikbaarheid van beurzen, aanmeldingsvereisten en financiële hulpopties.',
+                'application': 'Dit gaat over de status van de aanmelding. Vraag naar de huidige status van een aanmelding, volgende stappen of vereiste documenten.',
+                'visa': 'Dit gaat over visuminformatie. Vraag naar visumvereisten, benodigde documentatie en beschikbare ondersteuning voor internationale studenten.',
+                'research': 'Dit gaat over onderzoeksmogelijkheden. Focus op onderzoeksprojecten, begeleidingsmogelijkheden en onderzoeksvereisten.',
+                'career': 'Dit gaat over carrièremogelijkheden. Focus op carrièreresultaten, werkgelegenheidsstatistieken en carrièreondersteuningsdiensten.'
+            },
+            'ru': {
+                'inquiry': 'Это общий запрос о программе. Спрашивайте общую информацию, детали программы и любые вопросы о программе.',
+                'admission': 'Это запрос о поступлении. Сосредоточьтесь на требованиях к поступлению, процессе подачи заявки, сроках и критериях отбора.',
+                'scholarship': 'Это запрос о стипендии. Сосредоточьтесь на возможностях финансирования, доступности стипендий, требованиях к подаче заявки и вариантах финансовой помощи.',
+                'application': 'Это касается статуса заявки. Спрашивайте о текущем статусе заявки, следующих шагах или необходимых документах.',
+                'visa': 'Это касается информации о визе. Спрашивайте о требованиях к визе, необходимой документации и доступной поддержке для иностранных студентов.',
+                'research': 'Это касается возможностей для исследований. Сосредоточьтесь на исследовательских проектах, возможностях руководства и требованиях к исследованиям.',
+                'career': 'Это касается карьерных возможностей. Сосредоточьтесь на карьерных результатах, статистике занятости и службах поддержки карьеры.'
+            },
+            'zh': {
+                'inquiry': '这是关于项目的一般询问。询问一般信息、项目详情和关于项目的任何问题。',
+                'admission': '这是关于入学的询问。专注于入学要求、申请流程、截止日期和选择标准。',
+                'scholarship': '这是关于奖学金的询问。专注于资助机会、奖学金可用性、申请要求和财政援助选项。',
+                'application': '这是关于申请状态的询问。询问申请的当前状态、下一步或所需文件。',
+                'visa': '这是关于签证信息的询问。询问签证要求、所需文件和为国际学生提供的支持。',
+                'research': '这是关于研究机会的询问。专注于研究项目、指导机会和研究要求。',
+                'career': '这是关于职业机会的询问。专注于职业结果、就业统计和职业支持服务。'
+            },
+            'ja': {
+                'inquiry': 'これはプログラムに関する一般的な問い合わせです。一般的な情報、プログラムの詳細、プログラムに関する質問を尋ねてください。',
+                'admission': 'これは入学に関する問い合わせです。入学要件、申請プロセス、締切、選考基準に焦点を当ててください。',
+                'scholarship': 'これは奨学金に関する問い合わせです。資金提供機会、奨学金の利用可能性、申請要件、財政援助オプションに焦点を当ててください。',
+                'application': 'これは申請状況に関する問い合わせです。申請の現在の状況、次のステップ、必要な書類について尋ねてください。',
+                'visa': 'これはビザ情報に関する問い合わせです。ビザ要件、必要な書類、国際学生向けの利用可能なサポートについて尋ねてください。',
+                'research': 'これは研究機会に関する問い合わせです。研究プロジェクト、指導機会、研究要件に焦点を当ててください。',
+                'career': 'これはキャリア機会に関する問い合わせです。キャリア結果、雇用統計、キャリアサポートサービスに焦点を当ててください。'
+            },
+            'ko': {
+                'inquiry': '이것은 프로그램에 대한 일반적인 문의입니다. 일반 정보, 프로그램 세부사항, 프로그램에 대한 질문을 물어보세요.',
+                'admission': '이것은 입학 문의입니다. 입학 요건, 지원 과정, 마감일, 선발 기준에 집중하세요.',
+                'scholarship': '이것은 장학금 문의입니다. 자금 지원 기회, 장학금 가용성, 지원 요건, 재정 지원 옵션에 집중하세요.',
+                'application': '이것은 지원 상태에 관한 것입니다. 지원의 현재 상태, 다음 단계, 필요한 서류에 대해 물어보세요.',
+                'visa': '이것은 비자 정보에 관한 것입니다. 비자 요건, 필요한 서류, 국제 학생을 위한 이용 가능한 지원에 대해 물어보세요.',
+                'research': '이것은 연구 기회에 관한 것입니다. 연구 프로젝트, 지도 기회, 연구 요건에 집중하세요.',
+                'career': '이것은 경력 기회에 관한 것입니다. 경력 결과, 고용 통계, 경력 지원 서비스에 집중하세요.'
+            },
+            'ar': {
+                'inquiry': 'هذا استفسار عام حول البرنامج. اسأل عن المعلومات العامة وتفاصيل البرنامج وأي أسئلة حول البرنامج.',
+                'admission': 'هذا استفسار حول القبول. ركز على متطلبات القبول وعملية التقديم والمواعيد النهائية ومعايير الاختيار.',
+                'scholarship': 'هذا استفسار حول المنح الدراسية. ركز على فرص التمويل وتوفر المنح الدراسية ومتطلبات التقديم وخيارات المساعدة المالية.',
+                'application': 'هذا حول حالة التقديم. اسأل عن الحالة الحالية للتقديم والخطوات التالية أو المستندات المطلوبة.',
+                'visa': 'هذا حول معلومات التأشيرة. اسأل عن متطلبات التأشيرة والوثائق المطلوبة والدعم المتاح للطلاب الدوليين.',
+                'research': 'هذا حول فرص البحث. ركز على مشاريع البحث وفرص الإشراف ومتطلبات البحث.',
+                'career': 'هذا حول فرص العمل. ركز على نتائج العمل وإحصائيات التوظيف وخدمات دعم العمل.'
+            }
+        }
+        
+        return contexts.get(language, contexts['en']).get(email_type, contexts['en']['inquiry'])
+    
     def _build_content_prompt(self, program_name, university_name, coordinator_name, coordinator_role, email_type, student_profile, custom_requirements, language='en'):
         """Build the prompt for content generation"""
         logger.info(f"Building content prompt for language: {language}")
+        
+        # Email type specific context
+        email_type_context = self._get_email_type_context(email_type, language)
+        
         # Language-specific prompts
         language_prompts = {
             'en': f"""Write a professional email for a student contacting {coordinator_name} ({coordinator_role}) at {university_name} about the {program_name} program.
 
 Email type: {email_type}
+{email_type_context}
 Program: {program_name}
 University: {university_name}
 Coordinator: {coordinator_name} ({coordinator_role})""",
             'it': f"""Scrivi un'email professionale per uno studente che contatta {coordinator_name} ({coordinator_role}) presso {university_name} riguardo al programma {program_name}.
 
 Tipo email: {email_type}
+{email_type_context}
 Programma: {program_name}
 Università: {university_name}
 Coordinatore: {coordinator_name} ({coordinator_role})""",
             'fr': f"""Écrivez un email professionnel pour un étudiant contactant {coordinator_name} ({coordinator_role}) à {university_name} concernant le programme {program_name}.
 
 Type d'email: {email_type}
+{email_type_context}
 Programme: {program_name}
 Université: {university_name}
 Coordinateur: {coordinator_name} ({coordinator_role})""",
             'es': f"""Escribe un email profesional para un estudiante que contacta a {coordinator_name} ({coordinator_role}) en {university_name} sobre el programa {program_name}.
 
 Tipo de email: {email_type}
+{email_type_context}
 Programa: {program_name}
 Universidad: {university_name}
 Coordinador: {coordinator_name} ({coordinator_role})""",
             'de': f"""Schreiben Sie eine professionelle E-Mail für einen Studenten, der {coordinator_name} ({coordinator_role}) an der {university_name} bezüglich des Programms {program_name} kontaktiert.
 
 E-Mail-Typ: {email_type}
+{email_type_context}
 Programm: {program_name}
 Universität: {university_name}
 Koordinator: {coordinator_name} ({coordinator_role})""",
             'pt': f"""Escreva um email profissional para um estudante entrando em contato com {coordinator_name} ({coordinator_role}) na {university_name} sobre o programa {program_name}.
 
 Tipo de email: {email_type}
+{email_type_context}
 Programa: {program_name}
 Universidade: {university_name}
 Coordenador: {coordinator_name} ({coordinator_role})""",
             'nl': f"""Schrijf een professionele email voor een student die {coordinator_name} ({coordinator_role}) bij {university_name} contacteert over het programma {program_name}.
 
 Email type: {email_type}
+{email_type_context}
 Programma: {program_name}
 Universiteit: {university_name}
 Coördinator: {coordinator_name} ({coordinator_role})""",
             'ru': f"""Напишите профессиональное письмо для студента, обращающегося к {coordinator_name} ({coordinator_role}) в {university_name} по поводу программы {program_name}.
 
 Тип письма: {email_type}
+{email_type_context}
 Программа: {program_name}
 Университет: {university_name}
 Координатор: {coordinator_name} ({coordinator_role})""",
             'zh': f"""为联系{university_name}的{coordinator_name}（{coordinator_role}）询问{program_name}项目的学生写一封专业邮件。
 
 邮件类型: {email_type}
+{email_type_context}
 项目: {program_name}
 大学: {university_name}
 协调员: {coordinator_name} ({coordinator_role})""",
             'ja': f"""{university_name}の{coordinator_name}（{coordinator_role}）に{program_name}プログラムについて連絡する学生のためのプロフェッショナルなメールを書いてください。
 
 メールタイプ: {email_type}
+{email_type_context}
 プログラム: {program_name}
 大学: {university_name}
 コーディネーター: {coordinator_name} ({coordinator_role})""",
             'ko': f"""{university_name}의 {coordinator_name}（{coordinator_role}）에게 {program_name} 프로그램에 대해 연락하는 학생을 위한 전문적인 이메일을 작성하세요.
 
 이메일 유형: {email_type}
+{email_type_context}
 프로그램: {program_name}
 대학교: {university_name}
 코디네이터: {coordinator_name} ({coordinator_role})""",
             'ar': f"""اكتب بريد إلكتروني مهني لطالب يتصل بـ {coordinator_name} ({coordinator_role}) في {university_name} بخصوص برنامج {program_name}.
 
 نوع البريد الإلكتروني: {email_type}
+{email_type_context}
 البرنامج: {program_name}
 الجامعة: {university_name}
 المنسق: {coordinator_name} ({coordinator_role})"""
