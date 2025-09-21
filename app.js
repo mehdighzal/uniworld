@@ -190,6 +190,20 @@ function setupEventListeners() {
             console.error('Bulk email type dropdown not found');
         }
         
+        // Email type change listener for coordinator email modal
+        const emailType = document.getElementById('emailType');
+        if (emailType) {
+            emailType.addEventListener('change', function() {
+                // Add a small delay to ensure the value is updated
+                setTimeout(() => {
+                    generateCoordinatorEmailTypeBasedAI();
+                }, 100);
+            });
+            console.log('Coordinator email type change listener attached');
+        } else {
+            console.error('Coordinator email type dropdown not found');
+        }
+        
     }, 100);
 }
 
@@ -2926,13 +2940,16 @@ let currentProgramForAI = null;
 let currentCoordinatorForAI = null;
 
 // Generate AI-powered email suggestions
-async function generateAISuggestions(programId = null, coordinatorId = null, emailType = 'inquiry') {
+async function generateAISuggestions(programId = null, coordinatorId = null, emailType = null) {
     // Use global variables if parameters not provided
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
-    // Get selected language
+    // Get selected language and email type from the UI
     const language = document.getElementById('emailLanguage')?.value || 'en';
+    if (!emailType) {
+        emailType = document.getElementById('emailType')?.value || 'inquiry';
+    }
     
     console.log('AI function called with:', { programId, coordinatorId, emailType, language });
     console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
@@ -3191,14 +3208,83 @@ async function generateEmailTypeBasedAI() {
     }
 }
 
+// Generate both subject and content when email type changes in coordinator modal
+async function generateCoordinatorEmailTypeBasedAI() {
+    const token = localStorage.getItem('token');
+    if (!token) {
+        return; // Don't show error for automatic generation
+    }
+    
+    // Check if we have the required global variables for AI generation
+    if (!currentProgramForAI || !currentCoordinatorForAI) {
+        return; // Don't generate if no program/coordinator selected
+    }
+    
+    try {
+        const language = document.getElementById('emailLanguage')?.value || 'en';
+        const emailType = document.getElementById('emailType')?.value || 'inquiry';
+        
+        // Show loading state
+        const subjectField = document.getElementById('emailSubject');
+        const contentField = document.getElementById('emailBody');
+        
+        if (subjectField) subjectField.value = 'Generating AI subject...';
+        if (contentField) contentField.value = 'Generating AI content...';
+        
+        // Generate AI suggestions (both subject and content)
+        const response = await fetch(`${API_BASE_URL}/ai/generate-suggestions/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            credentials: 'include',
+            body: JSON.stringify({
+                program_id: currentProgramForAI,
+                coordinator_id: currentCoordinatorForAI,
+                email_type: emailType,
+                language: language
+            })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.suggestions) {
+                // Update subject
+                if (data.suggestions.subject && subjectField) {
+                    subjectField.value = data.suggestions.subject;
+                }
+                
+                // Update content
+                if (data.suggestions.content && contentField) {
+                    contentField.value = data.suggestions.content;
+                }
+                
+                // Show success notification
+                showNotification(`AI generated ${emailType} email successfully!`, 'success');
+            }
+        }
+        
+    } catch (error) {
+        console.error('Error generating coordinator email type based AI:', error);
+        // Reset fields on error
+        const subjectField = document.getElementById('emailSubject');
+        const contentField = document.getElementById('emailBody');
+        if (subjectField) subjectField.value = '';
+        if (contentField) contentField.value = '';
+    }
+}
+
 // Generate multiple subject options
-async function generateAISubjectOptions(programId = null, coordinatorId = null, emailType = 'inquiry', count = 3) {
+async function generateAISubjectOptions(programId = null, coordinatorId = null, emailType = null, count = 3) {
     // Use global variables if parameters not provided
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
-    // Get selected language
+    // Get selected language and email type from the UI
     const language = document.getElementById('emailLanguage')?.value || 'en';
+    if (!emailType) {
+        emailType = document.getElementById('emailType')?.value || 'inquiry';
+    }
     
     console.log('AI subject function called with:', { programId, coordinatorId, emailType, count, language });
     console.log('Global variables:', { currentProgramForAI, currentCoordinatorForAI });
@@ -3251,8 +3337,9 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
     if (!programId) programId = currentProgramForAI;
     if (!coordinatorId) coordinatorId = currentCoordinatorForAI;
     
-    // Get selected language
+    // Get selected language and email type from the UI
     const language = document.getElementById('emailLanguage')?.value || 'en';
+    const emailType = document.getElementById('emailType')?.value || 'inquiry';
     
     if (!programId || !coordinatorId) {
         showNotification('Please select a program and coordinator first', 'error');
@@ -3277,6 +3364,7 @@ async function enhanceEmailContent(programId = null, coordinatorId = null, enhan
                 program_id: programId,
                 coordinator_id: coordinatorId,
                 current_content: currentContent,
+                email_type: emailType,
                 enhancement_type: enhancementType,
                 language: language
             })
