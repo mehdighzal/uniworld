@@ -205,7 +205,7 @@ GEMINI_MODEL = config('GEMINI_MODEL', default='gemini-1.5-flash')
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "http://localhost:8000",
+    "http://127.0.0.1:8000",
     "http://127.0.0.1:8000",
 ]
 
@@ -225,7 +225,7 @@ CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8000",
-    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 # API Documentation
@@ -252,4 +252,9 @@ EMAIL_HOST_PASSWORD = config('EMAIL_HOST_PASSWORD', default='')
 # Google OAuth2 Settings
 GOOGLE_CLIENT_ID = config('GOOGLE_CLIENT_ID', default='')
 GOOGLE_CLIENT_SECRET = config('GOOGLE_CLIENT_SECRET', default='')
-GOOGLE_REDIRECT_URI = config('GOOGLE_REDIRECT_URI', default='http://localhost:8000/auth/google/callback/')
+GOOGLE_REDIRECT_URI = config('GOOGLE_REDIRECT_URI', default='http://127.0.0.1:8000/oauth/gmail/callback/')
+
+# Microsoft OAuth2 Settings
+MICROSOFT_CLIENT_ID = config('MICROSOFT_CLIENT_ID', default='')
+MICROSOFT_CLIENT_SECRET = config('MICROSOFT_CLIENT_SECRET', default='')
+MICROSOFT_REDIRECT_URI = config('MICROSOFT_REDIRECT_URI', default='http://127.0.0.1:8000/oauth/outlook/callback/')

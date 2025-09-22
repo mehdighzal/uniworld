@@ -2492,6 +2492,14 @@ function addBulkEmailToHistory(coordinators, subject, body) {
 function connectGmail() {
     console.log('=== CONNECTING GMAIL ===');
     
+    // Check if user is logged in
+    if (!currentUser) {
+        console.log('User not logged in, cannot connect Gmail');
+        showNotification('Please login to connect Gmail', 'error');
+        showLoginModal();
+        return;
+    }
+    
     // Check if we're in development mode
     if (isDevelopmentMode()) {
         console.log('Development mode: Simulating Gmail connection');
@@ -2500,11 +2508,12 @@ function connectGmail() {
     }
     
     // Gmail OAuth2 configuration
-    const clientId = 'your-gmail-client-id.apps.googleusercontent.com'; // Replace with actual Gmail client ID
-    const redirectUri = window.location.origin + '/oauth/gmail/callback';
-    const scope = 'https://www.googleapis.com/auth/gmail.send';
+    const clientId = OAUTH2_CONFIG.gmail.clientId;
+    const redirectUri = OAUTH2_CONFIG.gmail.redirectUri;
+    const scope = OAUTH2_CONFIG.gmail.scope;
     
-    // Create OAuth2 URL
+    // Create OAuth2 URL with user ID in state
+    const state = `gmail-oauth-${currentUser.id}-${Date.now()}`;
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${clientId}&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
@@ -2512,7 +2521,7 @@ function connectGmail() {
         `response_type=code&` +
         `access_type=offline&` +
         `prompt=consent&` +
-        `state=gmail-oauth-${Date.now()}`;
+        `state=${state}`;
     
     // Open OAuth2 popup
     const popup = window.open(authUrl, 'gmail-oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
@@ -2526,14 +2535,25 @@ function connectGmail() {
     const checkClosed = setInterval(() => {
         if (popup.closed) {
             clearInterval(checkClosed);
-            // Check if we have a successful connection
-            checkOAuth2Status('gmail');
+            // Wait a moment for the callback to complete, then check status
+            setTimeout(() => {
+                console.log('Popup closed, checking OAuth2 status...');
+                checkOAuth2Status('gmail');
+            }, 3000);
         }
     }, 1000);
 }
 
 function connectOutlook() {
     console.log('=== CONNECTING OUTLOOK ===');
+    
+    // Check if user is logged in
+    if (!currentUser) {
+        console.log('User not logged in, cannot connect Outlook');
+        showNotification('Please login to connect Outlook', 'error');
+        showLoginModal();
+        return;
+    }
     
     // Check if we're in development mode
     if (isDevelopmentMode()) {
@@ -2543,18 +2563,20 @@ function connectOutlook() {
     }
     
     // Outlook OAuth2 configuration
-    const clientId = 'your-outlook-client-id'; // Replace with actual Outlook client ID
-    const redirectUri = window.location.origin + '/oauth/outlook/callback';
-    const scope = 'https://graph.microsoft.com/Mail.Send';
+    const clientId = OAUTH2_CONFIG.outlook.clientId;
+    const redirectUri = OAUTH2_CONFIG.outlook.redirectUri;
+    const scope = OAUTH2_CONFIG.outlook.scope;
     
     // Create OAuth2 URL
+    // Create OAuth2 URL with user ID in state
+    const state = `outlook-oauth-${currentUser.id}-${Date.now()}`;
     const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
         `client_id=${clientId}&` +
         `response_type=code&` +
         `redirect_uri=${encodeURIComponent(redirectUri)}&` +
         `scope=${encodeURIComponent(scope)}&` +
         `response_mode=query&` +
-        `state=outlook-oauth-${Date.now()}`;
+        `state=${state}`;
     
     // Open OAuth2 popup
     const popup = window.open(authUrl, 'outlook-oauth', 'width=500,height=600,scrollbars=yes,resizable=yes');
@@ -2568,18 +2590,102 @@ function connectOutlook() {
     const checkClosed = setInterval(() => {
         if (popup.closed) {
             clearInterval(checkClosed);
-            // Check if we have a successful connection
-            checkOAuth2Status('outlook');
+            // Wait a moment for the callback to complete, then check status
+            setTimeout(() => {
+                console.log('Popup closed, checking OAuth2 status...');
+                checkOAuth2Status('outlook');
+            }, 3000);
         }
     }, 1000);
 }
 
+// OAuth2 Configuration (embedded for reliability)
+const OAUTH2_CONFIG = {
+    // Gmail OAuth2 Configuration
+    gmail: {
+        clientId: '713675907449-1oc4il4p7q0brv6smk2bmmtptl9e77le.apps.googleusercontent.com',
+        redirectUri: 'http://127.0.0.1:8000/oauth/gmail/callback/',
+        scope: 'https://www.googleapis.com/auth/gmail.send',
+        authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+        tokenUrl: 'https://oauth2.googleapis.com/token',
+    },
+    
+    // Outlook OAuth2 Configuration
+    outlook: {
+        clientId: 'your-outlook-client-id',
+        redirectUri: 'http://127.0.0.1:8000/oauth/outlook/callback/',
+        scope: 'https://graph.microsoft.com/Mail.Send',
+        authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
+        tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
+    },
+    
+    // Development Mode - Set to false for real OAuth2 testing
+    developmentMode: false,
+    
+    // Development credentials (for testing only)
+    development: {
+        gmail: {
+            email: 'test@gmail.com',
+            accessToken: 'dev-gmail-token-12345'
+        },
+        outlook: {
+            email: 'test@outlook.com',
+            accessToken: 'dev-outlook-token-67890'
+        }
+    }
+};
+
 // Development Mode Functions
 function isDevelopmentMode() {
-    // Check if we're in development mode
-    return window.location.hostname === 'localhost' || 
-           window.location.hostname === '127.0.0.1' ||
-           window.location.hostname.includes('localhost');
+    // Check if we're in development mode from OAuth2 config
+    console.log('OAUTH2_CONFIG developmentMode:', OAUTH2_CONFIG.developmentMode);
+    return OAUTH2_CONFIG.developmentMode === true;
+}
+
+// OAuth2 Message Handler
+window.addEventListener('message', function(event) {
+    console.log('=== MESSAGE RECEIVED ===');
+    console.log('Event origin:', event.origin);
+    console.log('Event data:', event.data);
+    
+    if (event.data && event.data.type === 'oauth_success') {
+        const { provider, success } = event.data;
+        console.log(`OAuth2 success for ${provider}:`, { success });
+        
+        if (provider === 'gmail') {
+            console.log('Handling Gmail OAuth2 success...');
+            handleGmailOAuthSuccess(null, null);
+        } else if (provider === 'outlook') {
+            console.log('Handling Outlook OAuth2 success...');
+            handleOutlookOAuthSuccess(null, null);
+        }
+    } else {
+        console.log('Message not OAuth2 success:', event.data);
+    }
+});
+
+function handleGmailOAuthSuccess(code, state) {
+    console.log('=== HANDLING GMAIL OAUTH SUCCESS ===');
+    
+    // Check OAuth2 status to get the real connection status
+    checkOAuth2Status('gmail');
+    
+    console.log('Gmail OAuth2 connection completed');
+}
+
+// Manual trigger for testing (remove in production)
+function testGmailOAuthSuccess() {
+    console.log('=== TESTING GMAIL OAUTH SUCCESS ===');
+    handleGmailOAuthSuccess('test-code-12345', 'test-state-67890');
+}
+
+function handleOutlookOAuthSuccess(code, state) {
+    console.log('=== HANDLING OUTLOOK OAUTH SUCCESS ===');
+    
+    // Check OAuth2 status to get the real connection status
+    checkOAuth2Status('outlook');
+    
+    console.log('Outlook OAuth2 connection completed');
 }
 
 function simulateGmailConnection() {
@@ -2606,15 +2712,63 @@ function simulateOutlookConnection() {
 
 function checkOAuth2Status(provider) {
     // Check if OAuth2 connection was successful
-    // In a real implementation, this would check the OAuth2 callback
     console.log(`Checking OAuth2 status for ${provider}`);
     
-    // For now, we'll simulate a successful connection
-    if (provider === 'gmail') {
-        simulateGmailConnection();
-    } else if (provider === 'outlook') {
-        simulateOutlookConnection();
+    // Check if user is logged in
+    if (!currentUser) {
+        console.log('User not logged in, cannot check OAuth2 status');
+        showNotification('Please login to connect email accounts', 'error');
+        return;
     }
+    
+    // Check if we're in development mode
+    if (isDevelopmentMode()) {
+        console.log('Development mode: Simulating OAuth2 connection');
+        if (provider === 'gmail') {
+            simulateGmailConnection();
+        } else if (provider === 'outlook') {
+            simulateOutlookConnection();
+        }
+        return;
+    }
+    
+    // Real OAuth2 implementation - check with backend
+    fetch('/api/oauth/tokens/', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for session authentication
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('OAuth2 status response:', data);
+            if (data.success) {
+                if (provider === 'gmail' && data.gmail.has_access_token) {
+                    // Update UI to show Gmail is connected
+                    emailAccounts.gmail.connected = true;
+                    emailAccounts.gmail.email = 'Connected via OAuth2';
+                    updateEmailAccountDisplay('gmail');
+                    saveEmailAccounts(); // Save to localStorage
+                    showNotification('Gmail connected successfully via OAuth2!', 'success');
+                } else if (provider === 'outlook' && data.outlook.has_access_token) {
+                    // Update UI to show Outlook is connected
+                    emailAccounts.outlook.connected = true;
+                    emailAccounts.outlook.email = 'Connected via OAuth2';
+                    updateEmailAccountDisplay('outlook');
+                    saveEmailAccounts(); // Save to localStorage
+                    showNotification('Outlook connected successfully via OAuth2!', 'success');
+                } else {
+                    showNotification(`${provider} OAuth2 connection failed`, 'error');
+                }
+            } else {
+                showNotification(`Failed to check ${provider} OAuth2 status: ${data.error}`, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking OAuth2 status:', error);
+            showNotification(`Error checking ${provider} OAuth2 status`, 'error');
+        });
 }
 
 function disconnectGmail() {
@@ -2741,6 +2895,13 @@ function loadEmailAccounts() {
     const savedAccounts = localStorage.getItem('emailAccounts');
     if (savedAccounts) {
         emailAccounts = { ...emailAccounts, ...JSON.parse(savedAccounts) };
+    }
+    
+    // Check OAuth2 status with backend if user is logged in
+    if (currentUser && !isDevelopmentMode()) {
+        console.log('Checking OAuth2 status with backend...');
+        checkOAuth2Status('gmail');
+        checkOAuth2Status('outlook');
     }
     
     // Update UI

@@ -187,12 +187,12 @@ python manage.py import_csv coordinators.csv
 
 ### Search for Programs
 ```bash
-curl "http://localhost:8000/api/search/?country=Italy&field_of_study=Computer Science&degree_level=master"
+curl "http://127.0.0.1:8000/api/search/?country=Italy&field_of_study=Computer Science&degree_level=master"
 ```
 
 ### User Registration
 ```bash
-curl -X POST "http://localhost:8000/api/auth/register/" \
+curl -X POST "http://127.0.0.1:8000/api/auth/register/" \
   -H "Content-Type: application/json" \
   -d '{
     "username": "testuser",
@@ -203,7 +203,7 @@ curl -X POST "http://localhost:8000/api/auth/register/" \
 
 ### User Login
 ```bash
-curl -X POST "http://localhost:8000/api/auth/login/" \
+curl -X POST "http://127.0.0.1:8000/api/auth/login/" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",

@@ -34,8 +34,8 @@ The platform automatically detects development environment and uses simulated OA
 2. Application type: "Web application"
 3. Name: "UniWorld Gmail Integration"
 4. Authorized redirect URIs:
-   - `http://yourdomain.com/oauth/gmail/callback`
-   - `https://yourdomain.com/oauth/gmail/callback`
+   - `http://yourdomain.com/oauth/gmail/callback/`
+   - `https://yourdomain.com/oauth/gmail/callback/`
 
 #### Step 3: Configure OAuth2
 1. Copy the Client ID
@@ -43,7 +43,7 @@ The platform automatically detects development environment and uses simulated OA
 ```javascript
 gmail: {
     clientId: 'your-actual-client-id.apps.googleusercontent.com',
-    redirectUri: 'https://yourdomain.com/oauth/gmail/callback',
+    redirectUri: 'https://yourdomain.com/oauth/gmail/callback/',
     // ... other settings
 }
 ```
@@ -58,7 +58,7 @@ gmail: {
 #### Step 2: Register Application
 1. Name: "UniWorld Outlook Integration"
 2. Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
-3. Redirect URI: `https://yourdomain.com/oauth/outlook/callback`
+3. Redirect URI: `https://yourdomain.com/oauth/outlook/callback/`
 
 #### Step 3: Configure API Permissions
 1. Go to "API permissions"
@@ -128,12 +128,12 @@ const OAUTH2_CONFIG = {
     developmentMode: false, // Disable for production
     gmail: {
         clientId: 'your-production-gmail-client-id',
-        redirectUri: 'https://yourdomain.com/oauth/gmail/callback',
+        redirectUri: 'https://yourdomain.com/oauth/gmail/callback/',
         // ... other settings
     },
     outlook: {
         clientId: 'your-production-outlook-client-id',
-        redirectUri: 'https://yourdomain.com/oauth/outlook/callback',
+        redirectUri: 'https://yourdomain.com/oauth/outlook/callback/',
         // ... other settings
     }
 };

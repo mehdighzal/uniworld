@@ -25,6 +25,7 @@ from .stripe_views import (
     subscription_cancel,
     get_user_subscription
 )
+from . import oauth_token_views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -32,8 +33,9 @@ urlpatterns = [
     # Home page (frontend)
     path('', views.home_view, name='home'),
     
-    # Serve JavaScript file
+    # Serve JavaScript files
     path('app.js', views.app_js_view, name='app-js'),
+    path('oauth2_config.js', views.oauth2_config_js_view, name='oauth2-config-js'),
     
     # API welcome page
     path('api-welcome/', views.welcome_view, name='api-welcome'),
@@ -63,6 +65,16 @@ urlpatterns = [
     path('api/user-subscription/<int:user_id>/', get_user_subscription, name='user-subscription'),
     path('subscription/success/', subscription_success, name='subscription-success'),
     path('subscription/cancel/', subscription_cancel, name='subscription-cancel'),
+    
+    # OAuth2 Callback Endpoints (handle both with and without trailing slash)
+    path('oauth/gmail/callback', views.gmail_oauth_callback, name='gmail-oauth-callback'),
+    path('oauth/gmail/callback/', views.gmail_oauth_callback, name='gmail-oauth-callback-slash'),
+    path('oauth/outlook/callback', views.outlook_oauth_callback, name='outlook-oauth-callback'),
+    path('oauth/outlook/callback/', views.outlook_oauth_callback, name='outlook-oauth-callback-slash'),
+    
+    # OAuth2 Token Management Endpoints
+    path('api/oauth/tokens/', oauth_token_views.get_oauth_tokens, name='get-oauth-tokens'),
+    path('api/oauth/refresh/', oauth_token_views.refresh_oauth_token, name='refresh-oauth-token'),
     
     # AI Services Endpoints
     path('api/ai/', include('ai_services.urls')),

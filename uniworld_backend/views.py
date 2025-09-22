@@ -11,6 +11,8 @@ from universities.models import University, Program, Coordinator
 import json
 import os
 import time
+import requests
+from datetime import datetime, timedelta
 
 
 @require_http_methods(["GET"])
@@ -48,6 +50,30 @@ def app_js_view(request):
         return HttpResponse(content, content_type='application/javascript')
     except FileNotFoundError:
         return HttpResponse("console.error('app.js not found');", content_type='application/javascript')
+
+
+@require_http_methods(["GET"])
+def oauth2_config_js_view(request):
+    """Serve the oauth2_config.js file"""
+    js_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'oauth2_config.js')
+    
+    # Debug: Print the path being used
+    print(f"Looking for oauth2_config.js at: {js_path}")
+    print(f"File exists: {os.path.exists(js_path)}")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"__file__ location: {__file__}")
+    
+    try:
+        with open(js_path, 'r', encoding='utf-8') as file:
+            content = file.read()
+        print(f"Successfully read oauth2_config.js, content length: {len(content)}")
+        return HttpResponse(content, content_type='application/javascript')
+    except FileNotFoundError:
+        print(f"File not found at: {js_path}")
+        return HttpResponse("console.error('oauth2_config.js not found');", content_type='application/javascript')
+    except Exception as e:
+        print(f"Error reading oauth2_config.js: {str(e)}")
+        return HttpResponse(f"console.error('Error reading oauth2_config.js: {str(e)}');", content_type='application/javascript')
 
 
 @csrf_exempt
@@ -808,3 +834,388 @@ def test_user_profile_view(request):
             'success': False,
             'error': f'General error: {str(e)}'
         }, status=500)
+
+
+# OAuth2 Helper Functions
+def exchange_gmail_code_for_token(code):
+    """Exchange authorization code for access token"""
+    try:
+        token_url = 'https://oauth2.googleapis.com/token'
+        
+        data = {
+            'client_id': getattr(settings, 'GOOGLE_CLIENT_ID', ''),
+            'client_secret': getattr(settings, 'GOOGLE_CLIENT_SECRET', ''),
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': getattr(settings, 'GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/oauth/gmail/callback/')
+        }
+        
+        print(f"Token exchange data: {data}")
+        print(f"Token URL: {token_url}")
+        print(f"Redirect URI being sent: {data['redirect_uri']}")
+        print(f"Settings GOOGLE_REDIRECT_URI: {getattr(settings, 'GOOGLE_REDIRECT_URI', 'NOT_SET')}")
+        
+        response = requests.post(token_url, data=data)
+        
+        print(f"Token exchange response status: {response.status_code}")
+        print(f"Token exchange response text: {response.text}")
+        print(f"Response headers: {dict(response.headers)}")
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Token exchange failed: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"Error exchanging code for token: {str(e)}")
+        return None
+
+def get_gmail_user_email(access_token):
+    """Get user's email from Google API"""
+    try:
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get('https://www.googleapis.com/oauth2/v2/userinfo', headers=headers)
+        
+        if response.status_code == 200:
+            user_info = response.json()
+            return user_info.get('email')
+        else:
+            print(f"Failed to get user email: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"Error getting user email: {str(e)}")
+        return None
+
+def get_user_from_oauth_state(state, request):
+    """Get user from OAuth state parameter or session"""
+    try:
+        # Try to get user from session first
+        if request.user.is_authenticated:
+            print(f"Found authenticated user: {request.user.email}")
+            return request.user
+        
+        # If state contains user ID, try to get user
+        if state:
+            try:
+                # Parse user ID from state parameter
+                # Format: "gmail-oauth-{user_id}-{timestamp}" or "outlook-oauth-{user_id}-{timestamp}"
+                if 'oauth-' in state:
+                    parts = state.split('-')
+                    if len(parts) >= 3:
+                        user_id = parts[2]  # Get user ID from state
+                        user = User.objects.get(id=user_id, is_active=True)
+                        print(f"Found user from state parameter: {user.email}")
+                        return user
+                
+                # Fallback: try to get the most recent user
+                user = User.objects.filter(is_active=True).first()
+                if user:
+                    print(f"Using fallback user from state: {user.email}")
+                return user
+            except User.DoesNotExist:
+                print(f"User with ID from state not found: {state}")
+            except Exception as e:
+                print(f"Error getting user from state: {str(e)}")
+                pass
+        
+        print("No user found for OAuth2 callback")
+        return None
+        
+    except Exception as e:
+        print(f"Error getting user from OAuth state: {str(e)}")
+        return None
+
+def exchange_outlook_code_for_token(code):
+    """Exchange authorization code for access token (Outlook)"""
+    try:
+        token_url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
+        
+        data = {
+            'client_id': getattr(settings, 'MICROSOFT_CLIENT_ID', ''),
+            'client_secret': getattr(settings, 'MICROSOFT_CLIENT_SECRET', ''),
+            'code': code,
+            'grant_type': 'authorization_code',
+            'redirect_uri': getattr(settings, 'MICROSOFT_REDIRECT_URI', 'http://127.0.0.1:8000/oauth/outlook/callback')
+        }
+        
+        response = requests.post(token_url, data=data)
+        
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"Outlook token exchange failed: {response.status_code} - {response.text}")
+            return None
+            
+    except Exception as e:
+        print(f"Error exchanging Outlook code for token: {str(e)}")
+        return None
+
+def get_outlook_user_email(access_token):
+    """Get user's email from Microsoft Graph API"""
+    try:
+        headers = {'Authorization': f'Bearer {access_token}'}
+        response = requests.get('https://graph.microsoft.com/v1.0/me', headers=headers)
+        
+        if response.status_code == 200:
+            user_info = response.json()
+            return user_info.get('mail') or user_info.get('userPrincipalName')
+        else:
+            print(f"Failed to get Outlook user email: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"Error getting Outlook user email: {str(e)}")
+        return None
+
+# OAuth2 Callback Views
+@require_http_methods(["GET"])
+def gmail_oauth_callback(request):
+    """Handle Gmail OAuth2 callback"""
+    print("=" * 50)
+    print("=== GMAIL OAUTH2 CALLBACK STARTED ===")
+    print("=" * 50)
+    print(f"Request GET params: {request.GET}")
+    print(f"Request user: {request.user}")
+    print(f"Request user authenticated: {request.user.is_authenticated}")
+    print(f"Request method: {request.method}")
+    print(f"Request path: {request.path}")
+    print(f"Request META: {dict(request.META)}")
+    
+    try:
+        # Get the authorization code from the callback
+        code = request.GET.get('code')
+        state = request.GET.get('state')
+        error = request.GET.get('error')
+        
+        print(f"Code: {code[:20] + '...' if code else 'None'}")
+        print(f"State: {state}")
+        print(f"Error: {error}")
+        
+        if error:
+            return HttpResponse(f"""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>Error: {error}</p>
+                    <p>Description: {request.GET.get('error_description', 'No description provided')}</p>
+                    <script>
+                        // Close the popup window
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        if not code:
+            return HttpResponse("""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>No authorization code received</p>
+                    <script>
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        # Exchange authorization code for access token
+        print("=== EXCHANGING CODE FOR TOKEN ===")
+        print(f"About to call exchange_gmail_code_for_token with code: {code[:20] + '...' if code else 'None'}")
+        token_data = exchange_gmail_code_for_token(code)
+        print(f"Token data: {token_data}")
+        
+        if not token_data:
+            return HttpResponse("""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>Failed to exchange authorization code for access token</p>
+                    <script>
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        # Get user from session or state parameter
+        print("=== GETTING USER FROM STATE ===")
+        user = get_user_from_oauth_state(state, request)
+        print(f"User found: {user}")
+        
+        if user:
+            print(f"Saving Gmail tokens for user: {user.email}")
+            # Save tokens to user model
+            user.google_access_token = token_data.get('access_token')
+            user.google_refresh_token = token_data.get('refresh_token')
+            
+            # Calculate token expiry
+            expires_in = token_data.get('expires_in', 3600)  # Default 1 hour
+            user.google_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+            
+            user.save()
+            print(f"Gmail tokens saved successfully for user: {user.email}")
+            
+            # Get user's email from Google API
+            user_email = get_gmail_user_email(token_data.get('access_token'))
+            if user_email:
+                print(f"Retrieved Gmail email: {user_email}")
+                # You could store this in a separate field if needed
+                pass
+        else:
+            print("No user found - cannot save Gmail tokens")
+        
+        return HttpResponse(f"""
+        <html>
+            <head><title>Gmail Connected Successfully</title></head>
+            <body>
+                <h1>Gmail Connected Successfully!</h1>
+                <p>OAuth2 tokens have been saved to your account.</p>
+                <p>You can now close this window and return to the application.</p>
+                <script>
+                    // Notify the parent window
+                    if (window.opener) {{
+                        window.opener.postMessage({{
+                            type: 'oauth_success',
+                            provider: 'gmail',
+                            success: true
+                        }}, '*');
+                    }}
+                    // Close the popup window
+                    setTimeout(() => window.close(), 2000);
+                </script>
+            </body>
+        </html>
+        """, content_type='text/html')
+        
+    except Exception as e:
+        return HttpResponse(f"""
+        <html>
+            <head><title>OAuth2 Error</title></head>
+            <body>
+                <h1>OAuth2 Error</h1>
+                <p>An error occurred: {str(e)}</p>
+                <script>
+                    window.close();
+                </script>
+            </body>
+        </html>
+        """, content_type='text/html')
+
+
+@require_http_methods(["GET"])
+def outlook_oauth_callback(request):
+    """Handle Outlook OAuth2 callback"""
+    try:
+        # Get the authorization code from the callback
+        code = request.GET.get('code')
+        state = request.GET.get('state')
+        error = request.GET.get('error')
+        
+        if error:
+            return HttpResponse(f"""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>Error: {error}</p>
+                    <p>Description: {request.GET.get('error_description', 'No description provided')}</p>
+                    <script>
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        if not code:
+            return HttpResponse("""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>No authorization code received</p>
+                    <script>
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        # Exchange authorization code for access token
+        token_data = exchange_outlook_code_for_token(code)
+        
+        if not token_data:
+            return HttpResponse("""
+            <html>
+                <head><title>OAuth2 Error</title></head>
+                <body>
+                    <h1>OAuth2 Error</h1>
+                    <p>Failed to exchange authorization code for access token</p>
+                    <script>
+                        window.close();
+                    </script>
+                </body>
+            </html>
+            """, content_type='text/html')
+        
+        # Get user from session or state parameter
+        user = get_user_from_oauth_state(state, request)
+        
+        if user:
+            # Save tokens to user model
+            user.microsoft_access_token = token_data.get('access_token')
+            user.microsoft_refresh_token = token_data.get('refresh_token')
+            
+            # Calculate token expiry
+            expires_in = token_data.get('expires_in', 3600)  # Default 1 hour
+            user.microsoft_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+            
+            user.save()
+            
+            # Get user's email from Microsoft Graph API
+            user_email = get_outlook_user_email(token_data.get('access_token'))
+            if user_email:
+                # You could store this in a separate field if needed
+                pass
+        
+        return HttpResponse(f"""
+        <html>
+            <head><title>Outlook Connected Successfully</title></head>
+            <body>
+                <h1>Outlook Connected Successfully!</h1>
+                <p>OAuth2 tokens have been saved to your account.</p>
+                <p>You can now close this window and return to the application.</p>
+                <script>
+                    // Notify the parent window
+                    if (window.opener) {{
+                        window.opener.postMessage({{
+                            type: 'oauth_success',
+                            provider: 'outlook',
+                            success: true
+                        }}, '*');
+                    }}
+                    // Close the popup window
+                    setTimeout(() => window.close(), 2000);
+                </script>
+            </body>
+        </html>
+        """, content_type='text/html')
+        
+    except Exception as e:
+        return HttpResponse(f"""
+        <html>
+            <head><title>OAuth2 Error</title></head>
+            <body>
+                <h1>OAuth2 Error</h1>
+                <p>An error occurred: {str(e)}</p>
+                <script>
+                    window.close();
+                </script>
+            </body>
+        </html>
+        """, content_type='text/html')
