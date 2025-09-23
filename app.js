@@ -176,6 +176,15 @@ function setupEventListeners() {
             console.error('Bulk email form not found');
         }
         
+        // Email form
+        const emailForm = document.getElementById('emailForm');
+        if (emailForm) {
+            emailForm.addEventListener('submit', handleEmailSubmit);
+            console.log('Email form event listener attached');
+        } else {
+            console.error('Email form not found');
+        }
+        
         // Email type change listener for automatic AI generation
         const bulkEmailType = document.getElementById('bulkEmailType');
         if (bulkEmailType) {
@@ -728,6 +737,16 @@ function closeModal(modalId) {
     }
 }
 
+// Show login modal
+function showLoginModal() {
+    showModal('loginModal');
+}
+
+// Show register modal
+function showRegisterModal() {
+    showModal('registerModal');
+}
+
 // Toggle user menu
 function toggleUserMenu() {
     console.log('=== TOGGLING USER MENU ===');
@@ -1038,8 +1057,8 @@ async function loadEmailSuggestions(programId) {
 }
 
 // Show email modal
-function showEmailModal() {
-    console.log('Showing email modal');
+function showEmailModal(programId = null) {
+    console.log('Showing email modal for program:', programId);
     
     // Check if user is logged in
     if (!currentUser) {
@@ -1056,6 +1075,11 @@ function showEmailModal() {
         return;
     }
     
+    // If programId is provided, populate coordinator details
+    if (programId) {
+        populateCoordinatorDetails(programId);
+    }
+    
     const modal = document.getElementById('emailModal');
     if (modal) {
         modal.classList.remove('hidden');
@@ -1066,6 +1090,59 @@ function showEmailModal() {
     } else {
         console.error('Email modal not found');
         showNotification('Email modal not found', 'error');
+    }
+}
+
+// Populate coordinator details in the email modal
+async function populateCoordinatorDetails(programId) {
+    try {
+        console.log('Populating coordinator details for program:', programId);
+        
+        // Find the program
+        const program = allPrograms.find(p => p.id === programId) || searchResults.find(p => p.id === programId);
+        if (!program) {
+            console.error('Program not found for ID:', programId);
+            return;
+        }
+        
+        // Fetch coordinators for this program
+        const data = await apiRequest(`/coordinators/?program_id=${program.program_id}`);
+        const coordinators = data.results || data;
+        
+        if (coordinators.length > 0) {
+            const coordinator = coordinators[0];
+            const coordinatorDetails = document.getElementById('coordinatorDetails');
+            
+            if (coordinatorDetails) {
+                coordinatorDetails.innerHTML = `
+                    <p><strong>Name:</strong> ${coordinator.name || 'Unknown'}</p>
+                    <p><strong>Email:</strong> ${coordinator.email || 'No email available'}</p>
+                    <p><strong>Program:</strong> ${program.name}</p>
+                    <p><strong>University:</strong> ${program.university ? program.university.name : 'Unknown'}</p>
+                `;
+                console.log('Coordinator details populated:', coordinator);
+            }
+        } else {
+            console.log('No coordinators found for program:', programId);
+            const coordinatorDetails = document.getElementById('coordinatorDetails');
+            if (coordinatorDetails) {
+                coordinatorDetails.innerHTML = `
+                    <p><strong>Program:</strong> ${program.name}</p>
+                    <p><strong>University:</strong> ${program.university ? program.university.name : 'Unknown'}</p>
+                    <p><strong>Email:</strong> No coordinator email available</p>
+                `;
+            }
+        }
+        
+        // Store the current program ID for email sending
+        currentProgramId = programId;
+        
+    } catch (error) {
+        console.error('Error populating coordinator details:', error);
+        const coordinatorDetails = document.getElementById('coordinatorDetails');
+        if (coordinatorDetails) {
+            coordinatorDetails.innerHTML = '<p>Error loading coordinator information</p>';
+        }
     }
 }
 
@@ -1200,6 +1277,18 @@ Best regards,
     showNotification('Email template loaded', 'success');
 }
 
+// Get coordinators for a program
+async function getCoordinatorsForProgram(programId) {
+    try {
+        const response = await fetch(`/api/coordinators/?program_id=${programId}`);
+        const data = await response.json();
+        return data.coordinators || [];
+    } catch (error) {
+        console.error('Error fetching coordinators:', error);
+        return [];
+    }
+}
+
 // Send email from composition modal
 async function sendEmailFromComposition(programId) {
     console.log('Sending email from composition modal for program:', programId);
@@ -1246,25 +1335,37 @@ async function sendEmailFromComposition(programId) {
             sendButton.textContent = 'Sending...';
         }
         
-        // For now, simulate email sending (in a real app, you'd make an API call)
-        console.log('Simulating email send:', { subject, body, programId });
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Update email usage
-        if (userSubscription) {
-            userSubscription.emailsUsed = (userSubscription.emailsUsed || 0) + 1;
-            saveSubscriptionData();
+        // Get coordinator email from the program
+        const coordinators = await getCoordinatorsForProgram(programId);
+        if (!coordinators || coordinators.length === 0) {
+            showNotification('No coordinators found for this program', 'error');
+            return;
         }
         
-        // Show success message
-        showNotification('Email sent successfully!', 'success');
+        const coordinatorEmail = coordinators[0].email;
+        if (!coordinatorEmail) {
+            showNotification('No coordinator email available', 'error');
+            return;
+        }
         
-        // Close the modal
-        closeEmailCompositionModal();
+        // Send email via OAuth2
+        console.log('Sending email via OAuth2:', { subject, body, coordinatorEmail });
         
-        console.log('Email sent successfully');
+        // Use the OAuth2 email sending function
+        const success = sendEmailViaOAuth2(coordinatorEmail, subject, body);
+        
+        if (success) {
+            // Update email usage
+            if (userSubscription) {
+                userSubscription.emailsUsed = (userSubscription.emailsUsed || 0) + 1;
+                saveSubscriptionData();
+            }
+            
+            // Close the modal
+            closeEmailCompositionModal();
+            
+            console.log('Email sent successfully via OAuth2');
+        }
         
     } catch (error) {
         console.error('Error sending email:', error);
@@ -1946,7 +2047,7 @@ async function searchPrograms() {
     const country = document.getElementById('countryFilter');
     const field = document.getElementById('fieldFilter');
     const university = document.getElementById('universityFilter');
-    const degreeLevel = document.getElementById('degreeLevelFilter');
+    const degreeLevel = document.getElementById('degreeFilter');
     const language = document.getElementById('languageFilter');
     
     if (!country || !field || !university) {
@@ -2599,41 +2700,7 @@ function connectOutlook() {
     }, 1000);
 }
 
-// OAuth2 Configuration (embedded for reliability)
-const OAUTH2_CONFIG = {
-    // Gmail OAuth2 Configuration
-    gmail: {
-        clientId: '713675907449-1oc4il4p7q0brv6smk2bmmtptl9e77le.apps.googleusercontent.com',
-        redirectUri: 'http://127.0.0.1:8000/oauth/gmail/callback/',
-        scope: 'https://www.googleapis.com/auth/gmail.send',
-        authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-        tokenUrl: 'https://oauth2.googleapis.com/token',
-    },
-    
-    // Outlook OAuth2 Configuration
-    outlook: {
-        clientId: 'your-outlook-client-id',
-        redirectUri: 'http://127.0.0.1:8000/oauth/outlook/callback/',
-        scope: 'https://graph.microsoft.com/Mail.Send',
-        authUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize',
-        tokenUrl: 'https://login.microsoftonline.com/common/oauth2/v2.0/token',
-    },
-    
-    // Development Mode - Set to false for real OAuth2 testing
-    developmentMode: false,
-    
-    // Development credentials (for testing only)
-    development: {
-        gmail: {
-            email: 'test@gmail.com',
-            accessToken: 'dev-gmail-token-12345'
-        },
-        outlook: {
-            email: 'test@outlook.com',
-            accessToken: 'dev-outlook-token-67890'
-        }
-    }
-};
+// OAuth2 Configuration is loaded from oauth2_config.js
 
 // Development Mode Functions
 function isDevelopmentMode() {
@@ -2667,6 +2734,9 @@ window.addEventListener('message', function(event) {
 function handleGmailOAuthSuccess(code, state) {
     console.log('=== HANDLING GMAIL OAUTH SUCCESS ===');
     
+    // Store connection status in localStorage
+    localStorage.setItem('gmailConnected', 'true');
+    
     // Check OAuth2 status to get the real connection status
     checkOAuth2Status('gmail');
     
@@ -2682,6 +2752,9 @@ function testGmailOAuthSuccess() {
 function handleOutlookOAuthSuccess(code, state) {
     console.log('=== HANDLING OUTLOOK OAUTH SUCCESS ===');
     
+    // Store connection status in localStorage
+    localStorage.setItem('outlookConnected', 'true');
+    
     // Check OAuth2 status to get the real connection status
     checkOAuth2Status('outlook');
     
@@ -2694,6 +2767,10 @@ function simulateGmailConnection() {
     emailAccounts.gmail.email = 'test@gmail.com';
     emailAccounts.gmail.accessToken = 'dev-gmail-token-12345';
     
+    // Store in localStorage for email sending
+    localStorage.setItem('gmailConnected', 'true');
+    localStorage.setItem('gmailEmail', 'test@gmail.com');
+    
     updateEmailAccountDisplay('gmail');
     showNotification('Gmail connected successfully! (Development Mode)', 'success');
     saveEmailAccounts();
@@ -2704,6 +2781,10 @@ function simulateOutlookConnection() {
     emailAccounts.outlook.connected = true;
     emailAccounts.outlook.email = 'test@outlook.com';
     emailAccounts.outlook.accessToken = 'dev-outlook-token-67890';
+    
+    // Store in localStorage for email sending
+    localStorage.setItem('outlookConnected', 'true');
+    localStorage.setItem('outlookEmail', 'test@outlook.com');
     
     updateEmailAccountDisplay('outlook');
     showNotification('Outlook connected successfully! (Development Mode)', 'success');
@@ -2778,6 +2859,10 @@ function disconnectGmail() {
     emailAccounts.gmail.email = '';
     emailAccounts.gmail.accessToken = '';
     
+    // Clear localStorage
+    localStorage.removeItem('gmailConnected');
+    localStorage.removeItem('gmailEmail');
+    
     updateEmailAccountDisplay('gmail');
     showNotification('Gmail disconnected successfully!', 'info');
     saveEmailAccounts();
@@ -2789,6 +2874,10 @@ function disconnectOutlook() {
     emailAccounts.outlook.connected = false;
     emailAccounts.outlook.email = '';
     emailAccounts.outlook.accessToken = '';
+    
+    // Clear localStorage
+    localStorage.removeItem('outlookConnected');
+    localStorage.removeItem('outlookEmail');
     
     updateEmailAccountDisplay('outlook');
     showNotification('Outlook disconnected successfully!', 'info');
@@ -2929,20 +3018,37 @@ function sendEmailViaOAuth2(recipient, subject, body) {
     
     console.log(`=== SENDING EMAIL VIA ${provider.toUpperCase()} ===`);
     
-    // Simulate email sending
+    // Send email via backend API
     const emailData = {
-        provider: provider,
-        recipient: recipient,
+        coordinator_email: recipient,
         subject: subject,
         body: body,
-        signature: emailSettings.signature,
-        timestamp: new Date().toISOString()
+        email_provider: provider
     };
     
-    // In a real implementation, this would make an API call to send the email
-    console.log('Email data:', emailData);
+    fetch('/api/send-email/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            console.log('Email sent successfully:', data);
+            showNotification(`Email sent successfully via ${provider.charAt(0).toUpperCase() + provider.slice(1)}!`, 'success');
+        } else {
+            console.error('Email sending failed:', data);
+            showNotification(`Failed to send email: ${data.error}`, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error sending email:', error);
+        showNotification('Error sending email. Please try again.', 'error');
+    });
     
-    showNotification(`Email sent successfully via ${provider.charAt(0).toUpperCase() + provider.slice(1)}!`, 'success');
     return true;
 }
 
@@ -3757,5 +3863,242 @@ function showAILoadingState(message = 'Generating AI suggestions...') {
     `;
     container.classList.remove('hidden');
 }
+
+// Missing functions that are called from HTML
+function showSubscriptionDashboard() {
+    const modal = document.getElementById('subscriptionDashboardModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        updateSubscriptionDashboard();
+    }
+}
+
+function closeSubscriptionDashboard() {
+    const modal = document.getElementById('subscriptionDashboardModal');
+    if (modal) {
+        modal.classList.add('hidden');
+    }
+}
+
+function visitOfficialPage() {
+    const program = currentProgramDetails;
+    if (program && program.university && program.university.website) {
+        window.open(program.university.website, '_blank');
+    } else {
+        showNotification('Official website not available', 'error');
+    }
+}
+
+function scrollToSubscription() {
+    const section = document.getElementById('subscription');
+    if (section) {
+        section.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+function updateSubscriptionDashboard() {
+    // Update current plan display
+    const currentPlanBadge = document.getElementById('currentPlanBadge');
+    if (currentPlanBadge) {
+        currentPlanBadge.textContent = userSubscription.plan.charAt(0).toUpperCase() + userSubscription.plan.slice(1);
+    }
+    
+    // Update usage statistics
+    const emailsUsed = document.getElementById('emailsUsed');
+    const emailsProgress = document.getElementById('emailsProgress');
+    const emailsLimit = document.getElementById('emailsLimit');
+    
+    if (emailsUsed) emailsUsed.textContent = userSubscription.emailsUsed;
+    if (emailsLimit) emailsLimit.textContent = `${userSubscription.emailsUsed} / ${userSubscription.emailsLimit}`;
+    if (emailsProgress) {
+        const percentage = userSubscription.emailsLimit > 0 ? (userSubscription.emailsUsed / userSubscription.emailsLimit) * 100 : 0;
+        emailsProgress.style.width = `${Math.min(percentage, 100)}%`;
+    }
+    
+    const searchesUsed = document.getElementById('searchesUsed');
+    const searchesProgress = document.getElementById('searchesProgress');
+    const searchesLimit = document.getElementById('searchesLimit');
+    
+    if (searchesUsed) searchesUsed.textContent = userSubscription.searchesUsed;
+    if (searchesLimit) searchesLimit.textContent = `${userSubscription.searchesUsed} / ${userSubscription.searchesLimit}`;
+    if (searchesProgress) {
+        const percentage = userSubscription.searchesLimit === 'unlimited' ? 0 : (userSubscription.searchesUsed / userSubscription.searchesLimit) * 100;
+        searchesProgress.style.width = `${Math.min(percentage, 100)}%`;
+    }
+}
+
+// Handle email form submission
+async function handleEmailSubmit(e) {
+    e.preventDefault();
+    console.log('=== EMAIL FORM SUBMISSION STARTED ===');
+    
+    if (!currentUser) {
+        showNotification('Please login to send emails', 'error');
+        return;
+    }
+    
+    // Get form data
+    const subject = document.getElementById('emailSubject').value;
+    const body = document.getElementById('emailBody').value;
+    
+    if (!subject || !body) {
+        showNotification('Please fill in both subject and message', 'error');
+        return;
+    }
+    
+    // Get coordinator information from the modal
+    const coordinatorInfo = document.getElementById('coordinatorDetails');
+    if (!coordinatorInfo) {
+        showNotification('Coordinator information not found', 'error');
+        return;
+    }
+    
+    console.log('Coordinator info element:', coordinatorInfo);
+    console.log('Coordinator info HTML:', coordinatorInfo.innerHTML);
+    console.log('Coordinator info text:', coordinatorInfo.textContent);
+    
+    // Extract coordinator email from the coordinator info
+    let coordinatorEmail = null;
+    
+    // Try to find the email in the HTML structure
+    const paragraphs = coordinatorInfo.querySelectorAll('p');
+    for (let p of paragraphs) {
+        const text = p.textContent;
+        if (text.includes('Email:')) {
+            const emailMatch = text.match(/Email:\s*([^\s\n]+)/);
+            if (emailMatch) {
+                coordinatorEmail = emailMatch[1];
+                break;
+            }
+        }
+    }
+    
+    // Fallback: try to extract from the entire text content
+    if (!coordinatorEmail) {
+        const coordinatorText = coordinatorInfo.textContent;
+        const emailMatch = coordinatorText.match(/Email:\s*([^\s\n]+)/);
+        if (emailMatch) {
+            coordinatorEmail = emailMatch[1];
+        }
+    }
+    
+    // Check if email is valid (not "No email available")
+    if (!coordinatorEmail || coordinatorEmail === 'No email available') {
+        showNotification('Coordinator email not found or not available', 'error');
+        return;
+    }
+    
+    console.log('Extracted coordinator email:', coordinatorEmail);
+    
+    // Get the current program ID (you might need to store this when opening the modal)
+    const programId = currentProgramId || 1; // Default fallback
+    
+    // Get the preferred email provider from user settings
+    const emailProvider = getConnectedEmailProvider();
+    if (!emailProvider) {
+        showNotification('No email provider connected. Please connect Gmail or Outlook first.', 'error');
+        return;
+    }
+    
+    // Disable the send button
+    const sendBtn = document.getElementById('sendEmailBtn');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending...';
+    }
+    
+    try {
+        console.log('Sending email with data:', {
+            coordinator_email: coordinatorEmail,
+            subject: subject,
+            body: body,
+            program_id: programId,
+            email_provider: emailProvider
+        });
+        
+        // Get CSRF token from cookies
+        const csrfToken = getCookie('csrftoken');
+        
+        const response = await fetch(`${API_BASE_URL}/send-email/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'X-CSRFToken': csrfToken
+            },
+            credentials: 'include', // Include cookies for CSRF
+            body: JSON.stringify({
+                coordinator_email: coordinatorEmail,
+                subject: subject,
+                body: body,
+                program_id: programId,
+                email_provider: emailProvider
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+            showNotification(`Email sent successfully via ${emailProvider}!`, 'success');
+            closeEmailModal();
+            
+            // Update email usage
+            if (userSubscription.emailsUsed < userSubscription.emailsLimit) {
+                userSubscription.emailsUsed++;
+                saveSubscriptionData();
+                updateUserSubscriptionDisplay();
+            }
+        } else {
+            showNotification(data.error || 'Failed to send email', 'error');
+        }
+        
+    } catch (error) {
+        console.error('Email sending error:', error);
+        showNotification('Failed to send email. Please try again.', 'error');
+    } finally {
+        // Re-enable the send button
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Email';
+        }
+    }
+}
+
+// Get the connected email provider
+function getConnectedEmailProvider() {
+    // Check localStorage for connected providers
+    const gmailConnected = localStorage.getItem('gmailConnected') === 'true';
+    const outlookConnected = localStorage.getItem('outlookConnected') === 'true';
+    
+    if (gmailConnected) return 'gmail';
+    if (outlookConnected) return 'outlook';
+    
+    // Check from user settings
+    const defaultProvider = document.getElementById('defaultEmailProvider');
+    if (defaultProvider) {
+        return defaultProvider.value;
+    }
+    
+    return null;
+}
+
+// Get cookie value by name
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Global variables that might be missing
+let currentProgramDetails = null;
 
 console.log('UniWorld app.js loaded successfully!');

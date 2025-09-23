@@ -13,6 +13,7 @@ import os
 import time
 import requests
 from datetime import datetime, timedelta
+from .oauth_token_views import refresh_gmail_token, refresh_outlook_token
 
 
 @require_http_methods(["GET"])
@@ -55,6 +56,7 @@ def app_js_view(request):
 @require_http_methods(["GET"])
 def oauth2_config_js_view(request):
     """Serve the oauth2_config.js file"""
+    print("=== OAUTH2_CONFIG_JS_VIEW CALLED ===")
     js_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'oauth2_config.js')
     
     # Debug: Print the path being used
@@ -107,6 +109,7 @@ def register_view(request):
         
         return JsonResponse({
             'message': 'User created successfully',
+            'token': f'demo_token_{user.id}',  # Simple token for demo purposes
             'user': {
                 'id': user.id,
                 'username': user.username,
@@ -149,6 +152,7 @@ def login_view(request):
             login(request, user)
             return JsonResponse({
                 'message': 'Login successful',
+                'token': f'demo_token_{user.id}',  # Simple token for demo purposes
                 'user': {
                     'id': user.id,
                     'username': user.username,
@@ -633,8 +637,9 @@ def search_api_view(request):
         print(f"Search API error: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt
 def send_email_api_view(request):
-    """API endpoint to send emails to coordinators"""
+    """API endpoint to send emails to coordinators using OAuth2"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
@@ -642,13 +647,14 @@ def send_email_api_view(request):
         import json
         data = json.loads(request.body)
         
-        # Get user from token (simplified for now)
-        username = data.get('username')
-        if not username:
+        # Get user from session
+        if not request.user.is_authenticated:
             return JsonResponse({'error': 'Authentication required'}, status=401)
         
+        user = request.user
+        
         # Get email data
-        coordinator_email = data.get('coordinator_id')
+        coordinator_email = data.get('coordinator_email')
         program_id = data.get('program_id')
         subject = data.get('subject')
         body = data.get('body')
@@ -657,37 +663,86 @@ def send_email_api_view(request):
         if not all([coordinator_email, subject, body]):
             return JsonResponse({'error': 'Missing required fields'}, status=400)
         
-        # For now, simulate email sending
-        # In a real implementation, you would:
-        # 1. Verify user subscription
-        # 2. Check email limits
-        # 3. Send email via Gmail/Outlook API
-        # 4. Log the email in database
+        # Check if user has OAuth tokens for the specified provider
+        if email_provider == 'gmail':
+            if not user.google_access_token:
+                return JsonResponse({'error': 'Gmail not connected. Please connect your Gmail account first.'}, status=400)
+            
+            # Check if token is expired
+            if user.google_token_expiry and user.google_token_expiry < timezone.now():
+                # Try to refresh the token
+                if user.google_refresh_token:
+                    new_token_data = refresh_gmail_token(user.google_refresh_token)
+                    if new_token_data:
+                        user.google_access_token = new_token_data.get('access_token')
+                        if new_token_data.get('refresh_token'):
+                            user.google_refresh_token = new_token_data.get('refresh_token')
+                        expires_in = new_token_data.get('expires_in', 3600)
+                        user.google_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+                        user.save()
+                    else:
+                        return JsonResponse({'error': 'Gmail token expired and refresh failed. Please reconnect your Gmail account.'}, status=400)
+                else:
+                    return JsonResponse({'error': 'Gmail token expired. Please reconnect your Gmail account.'}, status=400)
+            
+            # Send email via Gmail API
+            success = send_gmail_email(user.google_access_token, coordinator_email, subject, body)
+            
+        elif email_provider == 'outlook':
+            if not user.microsoft_access_token:
+                return JsonResponse({'error': 'Outlook not connected. Please connect your Outlook account first.'}, status=400)
+            
+            # Check if token is expired
+            if user.microsoft_token_expiry and user.microsoft_token_expiry < timezone.now():
+                # Try to refresh the token
+                if user.microsoft_refresh_token:
+                    new_token_data = refresh_outlook_token(user.microsoft_refresh_token)
+                    if new_token_data:
+                        user.microsoft_access_token = new_token_data.get('access_token')
+                        if new_token_data.get('refresh_token'):
+                            user.microsoft_refresh_token = new_token_data.get('refresh_token')
+                        expires_in = new_token_data.get('expires_in', 3600)
+                        user.microsoft_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+                        user.save()
+                    else:
+                        return JsonResponse({'error': 'Outlook token expired and refresh failed. Please reconnect your Outlook account.'}, status=400)
+                else:
+                    return JsonResponse({'error': 'Outlook token expired. Please reconnect your Outlook account.'}, status=400)
+            
+            # Send email via Outlook API
+            success = send_outlook_email(user.microsoft_access_token, coordinator_email, subject, body)
+            
+        else:
+            return JsonResponse({'error': 'Unsupported email provider'}, status=400)
         
-        # Simulate successful email sending
-        email_log = {
-            'id': f'email_{int(time.time())}',
-            'coordinator_email': coordinator_email,
-            'program_id': program_id,
-            'subject': subject,
-            'body': body,
-            'email_provider': email_provider,
-            'status': 'sent',
-            'sent_at': timezone.now().isoformat(),
-            'message_id': f'msg_{int(time.time())}'
-        }
-        
-        return JsonResponse({
-            'success': True,
-            'message': 'Email sent successfully',
-            'email_log': email_log
-        })
+        if success:
+            # Log the email
+            email_log = {
+                'id': f'email_{int(time.time())}',
+                'coordinator_email': coordinator_email,
+                'program_id': program_id,
+                'subject': subject,
+                'body': body,
+                'email_provider': email_provider,
+                'status': 'sent',
+                'sent_at': timezone.now().isoformat(),
+                'message_id': f'msg_{int(time.time())}'
+            }
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Email sent successfully via {email_provider}',
+                'email_log': email_log
+            })
+        else:
+            return JsonResponse({'error': f'Failed to send email via {email_provider}'}, status=500)
         
     except json.JSONDecodeError:
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
 
+@csrf_exempt
 def send_bulk_email_api_view(request):
     """API endpoint to send bulk emails to multiple coordinators"""
     if request.method != 'POST':
@@ -843,8 +898,8 @@ def exchange_gmail_code_for_token(code):
         token_url = 'https://oauth2.googleapis.com/token'
         
         data = {
-            'client_id': getattr(settings, 'GOOGLE_CLIENT_ID', ''),
-            'client_secret': getattr(settings, 'GOOGLE_CLIENT_SECRET', ''),
+            'client_id': getattr(settings, 'GOOGLE_CLIENT_ID', '713675907449-1oc4il4p7q0brv6smk2bmmtptl9e77le.apps.googleusercontent.com'),
+            'client_secret': getattr(settings, 'GOOGLE_CLIENT_SECRET', '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'),
             'code': code,
             'grant_type': 'authorization_code',
             'redirect_uri': getattr(settings, 'GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/oauth/gmail/callback/')
@@ -968,6 +1023,96 @@ def get_outlook_user_email(access_token):
     except Exception as e:
         print(f"Error getting Outlook user email: {str(e)}")
         return None
+
+
+def send_gmail_email(access_token, to_email, subject, body):
+    """Send email via Gmail API using OAuth2 access token"""
+    try:
+        import base64
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Create email message
+        message = MIMEMultipart()
+        message['to'] = to_email
+        message['subject'] = subject
+        
+        # Add body to email
+        message.attach(MIMEText(body, 'plain'))
+        
+        # Encode message
+        raw_message = base64.urlsafe_b64encode(message.as_bytes()).decode('utf-8')
+        
+        # Send email via Gmail API
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        email_data = {
+            'raw': raw_message
+        }
+        
+        response = requests.post(
+            'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+            headers=headers,
+            json=email_data
+        )
+        
+        if response.status_code == 200:
+            print(f"Gmail email sent successfully to {to_email}")
+            return True
+        else:
+            print(f"Failed to send Gmail email: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Error sending Gmail email: {str(e)}")
+        return False
+
+
+def send_outlook_email(access_token, to_email, subject, body):
+    """Send email via Outlook API using OAuth2 access token"""
+    try:
+        headers = {
+            'Authorization': f'Bearer {access_token}',
+            'Content-Type': 'application/json'
+        }
+        
+        email_data = {
+            'message': {
+                'subject': subject,
+                'body': {
+                    'contentType': 'Text',
+                    'content': body
+                },
+                'toRecipients': [
+                    {
+                        'emailAddress': {
+                            'address': to_email
+                        }
+                    }
+                ]
+            },
+            'saveToSentItems': True
+        }
+        
+        response = requests.post(
+            'https://graph.microsoft.com/v1.0/me/sendMail',
+            headers=headers,
+            json=email_data
+        )
+        
+        if response.status_code == 202:
+            print(f"Outlook email sent successfully to {to_email}")
+            return True
+        else:
+            print(f"Failed to send Outlook email: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"Error sending Outlook email: {str(e)}")
+        return False
 
 # OAuth2 Callback Views
 @require_http_methods(["GET"])
