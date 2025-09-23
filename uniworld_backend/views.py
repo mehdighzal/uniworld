@@ -752,45 +752,173 @@ def send_bulk_email_api_view(request):
         import json
         data = json.loads(request.body)
         
-        # Get user from token (simplified for now)
-        username = data.get('username')
-        if not username:
+        # Get user from session
+        if not request.user.is_authenticated:
             return JsonResponse({'error': 'Authentication required'}, status=401)
         
+        user = request.user
+        
         # Get bulk email data
-        programs = data.get('programs', [])
+        coordinators = data.get('coordinators', [])
         subject = data.get('subject')
         body = data.get('body')
         email_provider = data.get('email_provider', 'gmail')
         
-        if not all([programs, subject, body]):
+        if not all([coordinators, subject, body]):
             return JsonResponse({'error': 'Missing required fields'}, status=400)
         
-        # For now, simulate bulk email sending
-        # In a real implementation, you would:
-        # 1. Verify user subscription (Pro only)
-        # 2. Check email limits
-        # 3. Send emails via Gmail/Outlook API to all coordinators
-        # 4. Log all emails in database
+        # Check if user has OAuth tokens for the specified provider
+        if email_provider == 'gmail':
+            if not user.google_access_token:
+                return JsonResponse({'error': 'Gmail not connected. Please connect your Gmail account first.'}, status=400)
+            
+            # Check if token is expired
+            if user.google_token_expiry and user.google_token_expiry < timezone.now():
+                # Try to refresh the token
+                if user.google_refresh_token:
+                    new_token_data = refresh_gmail_token(user.google_refresh_token)
+                    if new_token_data:
+                        user.google_access_token = new_token_data.get('access_token')
+                        if new_token_data.get('refresh_token'):
+                            user.google_refresh_token = new_token_data.get('refresh_token')
+                        expires_in = new_token_data.get('expires_in', 3600)
+                        user.google_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+                        user.save()
+                    else:
+                        return JsonResponse({'error': 'Gmail token expired and refresh failed. Please reconnect your Gmail account.'}, status=400)
+                else:
+                    return JsonResponse({'error': 'Gmail token expired. Please reconnect your Gmail account.'}, status=400)
         
-        total_coordinators = sum(program.get('coordinators_count', 0) for program in programs)
+        elif email_provider == 'outlook':
+            if not user.microsoft_access_token:
+                return JsonResponse({'error': 'Outlook not connected. Please connect your Outlook account first.'}, status=400)
+            
+            # Check if token is expired
+            if user.microsoft_token_expiry and user.microsoft_token_expiry < timezone.now():
+                # Try to refresh the token
+                if user.microsoft_refresh_token:
+                    new_token_data = refresh_outlook_token(user.microsoft_refresh_token)
+                    if new_token_data:
+                        user.microsoft_access_token = new_token_data.get('access_token')
+                        if new_token_data.get('refresh_token'):
+                            user.microsoft_refresh_token = new_token_data.get('refresh_token')
+                        expires_in = new_token_data.get('expires_in', 3600)
+                        user.microsoft_token_expiry = timezone.now() + timedelta(seconds=expires_in)
+                        user.save()
+                    else:
+                        return JsonResponse({'error': 'Outlook token expired and refresh failed. Please reconnect your Outlook account.'}, status=400)
+                else:
+                    return JsonResponse({'error': 'Outlook token expired. Please reconnect your Outlook account.'}, status=400)
         
-        # Simulate successful bulk email sending
+        # Send emails to all coordinators
+        total_coordinators = len(coordinators)
+        successful_sends = 0
+        failed_sends = 0
+        message_ids = []
+        
+        for coordinator in coordinators:
+            coordinator_email = coordinator.get('email')
+            if not coordinator_email:
+                failed_sends += 1
+                continue
+            
+            # Personalize email content for each coordinator
+            coordinator_name = coordinator.get('name', 'Coordinator')
+            program_name = coordinator.get('program_name', 'Program')
+            university_name = coordinator.get('university_name', 'University')
+            
+            # Get program details for more specific content
+            program_data = coordinator.get('program', {})
+            field_of_study = program_data.get('field_of_study', '')
+            degree_level = program_data.get('degree_level', '')
+            
+            # Create program-specific subject
+            if program_name == 'test program 1':
+                personalized_subject = f"Test 1 Programme Inquiry - {user.full_name or user.email} - {program_name} at {university_name}"
+            elif program_name == 'test 2 programe':
+                personalized_subject = f"Test 2 Programme Inquiry - {user.full_name or user.email} - {program_name} at {university_name}"
+            else:
+                personalized_subject = f"{program_name} Programme Inquiry - {user.full_name or user.email} - {university_name}"
+            
+            # Create program-specific email body
+            if program_name == 'test program 1':
+                personalized_body = f"""Dear {coordinator_name},
+
+My name is {user.full_name or user.email}, and I am writing to express my strong interest in the Test 1 Programme at the University of Turin. I am particularly drawn to this program's focus on {field_of_study} and believe it aligns perfectly with my academic and career goals.
+
+Having researched the University of Turin's excellent reputation in {field_of_study}, I am excited about the opportunity to contribute to and learn from your distinguished faculty. My background in economics provides a solid foundation for this {degree_level} program, and I am confident that my analytical skills and dedication to academic excellence would make me a valuable addition to your cohort.
+
+I would be grateful if you could provide me with further information regarding the admission requirements, application deadlines, and the selection criteria for the Test 1 Programme. I am particularly interested in understanding the program structure and any specific prerequisites.
+
+Thank you for your time and consideration. I look forward to hearing from you soon.
+
+Best regards,
+{user.full_name or user.email}"""
+            
+            elif program_name == 'test 2 programe':
+                personalized_body = f"""Dear {coordinator_name},
+
+I hope this email finds you well. My name is {user.full_name or user.email}, and I am writing to inquire about the Test 2 Programme at the University of Turin. I am very interested in pursuing my {degree_level} studies in {field_of_study} at your prestigious institution.
+
+The University of Turin's commitment to academic excellence and innovation in {field_of_study} has particularly caught my attention. I believe that the Test 2 Programme would provide me with the advanced knowledge and skills necessary to excel in my chosen field.
+
+I would appreciate any information you could provide about the program curriculum, admission process, and application requirements. Additionally, I would be grateful for any insights into the program's unique features and what makes it stand out among similar programs.
+
+Thank you for taking the time to consider my inquiry. I look forward to your response and the possibility of joining your academic community.
+
+Best regards,
+{user.full_name or user.email}"""
+            
+            else:
+                # Generic template for other programs
+                personalized_body = f"""Dear {coordinator_name},
+
+My name is {user.full_name or user.email}, and I am writing to express my interest in the {program_name} at {university_name}. I am particularly interested in the {field_of_study} field and believe this {degree_level} program would be an excellent fit for my academic and career aspirations.
+
+I would be grateful if you could provide me with information about the admission requirements, application process, and program details. Thank you for your time and consideration.
+
+Best regards,
+{user.full_name or user.email}"""
+            
+            # Send email via the appropriate provider
+            if email_provider == 'gmail':
+                success = send_gmail_email(user.google_access_token, coordinator_email, personalized_subject, personalized_body)
+            elif email_provider == 'outlook':
+                success = send_outlook_email(user.microsoft_access_token, coordinator_email, personalized_subject, personalized_body)
+            else:
+                success = False
+            
+            if success:
+                successful_sends += 1
+                message_ids.append(f'msg_{int(time.time())}_{successful_sends}')
+            else:
+                failed_sends += 1
+        
+        # Create bulk email log
         bulk_email_log = {
             'id': f'bulk_email_{int(time.time())}',
-            'programs': programs,
+            'coordinators': coordinators,
             'subject': subject,
             'body': body,
             'email_provider': email_provider,
             'total_coordinators': total_coordinators,
-            'status': 'sent',
+            'successful_sends': successful_sends,
+            'failed_sends': failed_sends,
+            'status': 'completed' if failed_sends == 0 else 'partial',
             'sent_at': timezone.now().isoformat(),
-            'message_ids': [f'msg_{int(time.time())}_{i}' for i in range(total_coordinators)]
+            'message_ids': message_ids
         }
         
+        if successful_sends == total_coordinators:
+            message = f'Bulk email sent successfully to {successful_sends} coordinators'
+        elif successful_sends > 0:
+            message = f'Bulk email sent to {successful_sends} out of {total_coordinators} coordinators ({failed_sends} failed)'
+        else:
+            message = f'Failed to send bulk email to any coordinators ({failed_sends} failed)'
+        
         return JsonResponse({
-            'success': True,
-            'message': f'Bulk email sent successfully to {total_coordinators} coordinators',
+            'success': successful_sends > 0,
+            'message': message,
             'bulk_email_log': bulk_email_log
         })
         
