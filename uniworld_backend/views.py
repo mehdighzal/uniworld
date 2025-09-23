@@ -898,11 +898,11 @@ def exchange_gmail_code_for_token(code):
         token_url = 'https://oauth2.googleapis.com/token'
         
         data = {
-            'client_id': getattr(settings, 'GOOGLE_CLIENT_ID', '713675907449-1oc4il4p7q0brv6smk2bmmtptl9e77le.apps.googleusercontent.com'),
-            'client_secret': getattr(settings, 'GOOGLE_CLIENT_SECRET', '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'),
+            'client_id': settings.GOOGLE_CLIENT_ID,
+            'client_secret': settings.GOOGLE_CLIENT_SECRET,
             'code': code,
             'grant_type': 'authorization_code',
-            'redirect_uri': getattr(settings, 'GOOGLE_REDIRECT_URI', 'http://127.0.0.1:8000/oauth/gmail/callback/')
+            'redirect_uri': settings.GOOGLE_REDIRECT_URI
         }
         
         print(f"Token exchange data: {data}")
