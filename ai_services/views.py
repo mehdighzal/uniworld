@@ -1,5 +1,5 @@
 """
-AI-powered email suggestion API endpoints for UniWorld platform
+AI-powered email suggestion API endpoints for UniUp platform
 """
 
 from django.http import JsonResponse

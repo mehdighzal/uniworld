@@ -1,5 +1,5 @@
 """
-AI-powered email templates for UniWorld platform.
+AI-powered email templates for UniUp platform.
 This module provides intelligent email template generation.
 """
 

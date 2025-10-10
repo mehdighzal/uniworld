@@ -20,7 +20,7 @@ let userSubscription = {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('UniWorld app initializing...');
+    console.log('UniUp app initializing...');
     loadUserData();
     setupEventListeners();
     loadInitialData();
@@ -490,4 +490,4 @@ function viewProgramDetails(programId) {
     }
 }
 
-console.log('UniWorld app.js loaded successfully!');
+console.log('UniUp app.js loaded successfully!');

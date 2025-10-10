@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AI Integration Test Script for UniWorld Platform
+AI Integration Test Script for UniUp Platform
 This script tests the AI integration setup and functionality.
 """
 
@@ -232,7 +232,7 @@ def test_configuration():
 
 def main():
     """Run all tests"""
-    print("🚀 Starting AI Integration Tests for UniWorld Platform")
+    print("🚀 Starting AI Integration Tests for UniUp Platform")
     print("=" * 60)
     
     tests = [

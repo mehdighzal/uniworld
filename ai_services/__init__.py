@@ -1,4 +1,4 @@
-# AI Services Module for UniWorld Platform
+# AI Services Module for UniUp Platform
 # This module provides AI-powered email suggestions and templates
 
 # Create the package structure

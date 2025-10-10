@@ -1,7 +1,7 @@
 # OAuth2 Email Integration Setup Guide
 
 ## Overview
-This guide explains how to set up OAuth2 integration for Gmail and Outlook email services in the UniWorld platform.
+This guide explains how to set up OAuth2 integration for Gmail and Outlook email services in the UniUp platform.
 
 ## Current Status
 - ✅ **Development Mode**: Currently active for testing
@@ -32,7 +32,7 @@ The platform automatically detects development environment and uses simulated OA
 #### Step 2: Create OAuth2 Credentials
 1. Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"
 2. Application type: "Web application"
-3. Name: "UniWorld Gmail Integration"
+3. Name: "UniUp Gmail Integration"
 4. Authorized redirect URIs:
    - `http://yourdomain.com/oauth/gmail/callback/`
    - `https://yourdomain.com/oauth/gmail/callback/`
@@ -56,7 +56,7 @@ gmail: {
 3. Click "New registration"
 
 #### Step 2: Register Application
-1. Name: "UniWorld Outlook Integration"
+1. Name: "UniUp Outlook Integration"
 2. Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
 3. Redirect URI: `https://yourdomain.com/oauth/outlook/callback/`
 
@@ -239,4 +239,4 @@ if (DEBUG_OAUTH2) {
 
 ---
 
-**Note**: This guide is for the UniWorld platform OAuth2 email integration. Always follow security best practices when implementing OAuth2 in production.
+**Note**: This guide is for the UniUp platform OAuth2 email integration. Always follow security best practices when implementing OAuth2 in production.

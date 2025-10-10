@@ -1,4 +1,4 @@
-// OAuth2 Configuration for UniWorld Platform
+// OAuth2 Configuration for UniUp Platform
 // This file contains the OAuth2 settings for Gmail and Outlook integration
 
 const OAUTH2_CONFIG = {

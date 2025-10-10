@@ -1,4 +1,4 @@
-# UniWorld Testing Guide
+# UniUp Testing Guide
 
 ## 🧪 Complete Testing Checklist
 
@@ -199,7 +199,7 @@ Event listener attached: Search button event listener attached
 
 ## 🎯 Success Criteria
 
-The UniWorld platform is ready when:
+The UniUp platform is ready when:
 1. ✅ Users can register and login
 2. ✅ Users can search and filter programs
 3. ✅ Users can view detailed program information
@@ -227,4 +227,4 @@ The UniWorld platform is ready when:
 
 ---
 
-**🎉 The UniWorld platform is now complete and ready for testing!**
+**🎉 The UniUp platform is now complete and ready for testing!**

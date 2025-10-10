@@ -1,4 +1,4 @@
-# UniWorld - Master's Program Search Platform
+# UniUp - Master's Program Search Platform
 
 A comprehensive platform for students to search for master's programs in European universities, starting with Italy. The platform provides free access to browse university and program information, with premium features for sending emails directly to coordinators.
 
@@ -37,7 +37,7 @@ A comprehensive platform for students to search for master's programs in Europea
 ## 📁 Project Structure
 
 ```
-uniworld/
+uniup/
 ├── accounts/                 # User management and authentication
 ├── universities/            # University, program, and coordinator models
 ├── payments/               # Subscription and payment management
@@ -74,7 +74,7 @@ uniworld/
 1. **Clone the repository**
    ```bash
    git clone <your-repository-url>
-   cd uniworld
+   cd uniup
    ```
 
 2. **Create and activate virtual environment**

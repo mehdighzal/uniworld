@@ -4101,4 +4101,4 @@ function getCookie(name) {
 // Global variables that might be missing
 let currentProgramDetails = null;
 
-console.log('UniWorld app.js loaded successfully!');
+console.log('UniUp app.js loaded successfully!');

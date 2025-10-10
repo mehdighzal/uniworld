@@ -1,5 +1,5 @@
 """
-AI-powered email suggestion service for UniWorld platform.
+AI-powered email suggestion service for UniUp platform.
 This module provides intelligent email subject and content generation using Google Gemini.
 """
 

@@ -29,7 +29,7 @@ def home_view(request):
     except FileNotFoundError:
         return HttpResponse("""
         <html>
-            <head><title>UniWorld - Frontend Not Found</title></head>
+            <head><title>UniUp - Frontend Not Found</title></head>
             <body>
                 <h1>Frontend Not Found</h1>
                 <p>The frontend.html file could not be found.</p>
@@ -324,9 +324,9 @@ def profile_view(request):
 
 @require_http_methods(["GET"])
 def welcome_view(request):
-    """Welcome page for the UniWorld API"""
+    """Welcome page for the UniUp API"""
     return JsonResponse({
-        'message': 'Welcome to UniWorld API!',
+        'message': 'Welcome to UniUp API!',
         'description': 'Master\'s Program Search Platform for European Universities',
         'version': '1.0.0',
         'endpoints': {

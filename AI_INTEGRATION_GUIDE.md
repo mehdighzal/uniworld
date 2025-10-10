@@ -1,8 +1,8 @@
-# AI Integration Guide for UniWorld Platform
+# AI Integration Guide for UniUp Platform
 
 ## 🎯 Overview
 
-This guide will help you complete the AI integration for subject and email suggestions in your UniWorld platform. The integration includes:
+This guide will help you complete the AI integration for subject and email suggestions in your UniUp platform. The integration includes:
 
 - **AI-powered email generation** using OpenAI GPT-3.5-turbo
 - **Multiple subject line options** for different email types
@@ -255,7 +255,7 @@ Potential improvements:
 
 ## 🎉 Success!
 
-Once completed, your UniWorld platform will have:
+Once completed, your UniUp platform will have:
 - ✅ AI-powered email generation
 - ✅ Multiple subject line options
 - ✅ Content enhancement capabilities
@@ -274,4 +274,4 @@ If you encounter any issues:
 4. Ensure API key is correctly configured
 5. Test with fallback templates first
 
-The AI integration is designed to work seamlessly with your existing UniWorld platform while providing powerful new capabilities for your users.
+The AI integration is designed to work seamlessly with your existing UniUp platform while providing powerful new capabilities for your users.
